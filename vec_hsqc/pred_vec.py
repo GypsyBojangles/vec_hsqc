@@ -199,8 +199,8 @@ class PredLog( object ):
     def predict(self, theta, X):
 
 	from numpy import c_
-	
-        p = self.sigmoid(X * c_[theta]) >= 0.5
+	self.pred_Y = self.sigmoid(X * c_[theta]) 
+        p = self.pred_Y >= 0.5
         return p
 
     def train_classifier( self ):
