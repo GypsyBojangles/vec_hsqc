@@ -16,7 +16,7 @@ class PermData( object ):
 
 class ProbEst( object ):
 
-    def __init__( self, ImpObj, contname = 'control', exclude_spectra = [], scaling = [0.15, 1.0 ], **kwargs  ):
+    def __init__( self, ImpObj, contname = 'control', exclude_spectra = [], scaling = [0.15, 1.0 ], alter_height = True, alter_CSP = True, **kwargs  ):
 	"""Takes an object which is a dictionary of spectral features etc.
 	Ie a full_data_dict from an ImportNmrData instance.
 	Creates a feature difference matrix X and a vector Y
@@ -26,14 +26,16 @@ class ProbEst( object ):
 	self.contname = contname
 	self.exclude_spectra = exclude_spectra
 	self.scaling = scaling
+	self.alter_height = alter_height
+	self.alter_CSP = alter_CSP
 
 	self.ImpObj = ImpObj # dictionary of spectral features
 	
-	self.Xtot, self.Ytot, self.legmat = self.create_Xy_basic() # driver
+	self.Xtot, self.Ytot, self.legmat, self.R_matrix = self.create_Xy_basic( alter_height = self.alter_height, alter_CSP = self.alter_CSP ) # driver
 
 
 
-    def create_Xy_basic( self, alter = True ):
+    def create_Xy_basic( self, alter_height = True, alter_CSP = True ):
 	"""Basically a constructor for large matrices as follows:
 	(1) 'Xtot' is an (m X 6) matrix containing rows of raw differences for each
 	peak in each query spectrum, compared to all peaks from a given control.
@@ -56,21 +58,30 @@ class ProbEst( object ):
 	#initialise X, Y
 	print type( self.ImpObj[ self.contname ]['picked_features'] )
 	Xtot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] ] )
-	if alter:
+	Rmattot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] + 1 ] )
+	if alter_height and alter_CSP:
 	    Xtot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] -2 ] )
-	Ytot = np.zeros(1)
+	    Rmattot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] - 1 ] )
+	elif alter_CSP:
+	    Xtot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] -1 ] )
+	    Rmattot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] ] )
+	elif alter_height:
+	    Xtot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] -1 ] )
+	    Rmattot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] ] )
+	Ytot = np.zeros((1,1))
 	legmat = np.zeros([1,3])
 	###
 	for Sp in self.ImpObj.keys():
 	    if Sp != self.contname and Sp not in self.exclude_spectra:
-		Xsp, Ysp, legsp = self.get_diff_array( self.ImpObj[ Sp ], self.ImpObj[ self.contname ], alter = alter )
+		Xsp, Ysp, legsp, Rmat = self.get_diff_array( self.ImpObj[ Sp ], self.ImpObj[ self.contname ], alter_height = alter_height, alter_CSP = alter_CSP )
 		Xtot = np.vstack( [Xtot, Xsp ] )
+		Rmattot = np.vstack( [Rmattot, Rmat ] )
 		Ytot = np.concatenate( [Ytot, Ysp] ) 
 		legmat = np.vstack( [ legmat, legsp ] )
 	print 'Xtot', np.shape( Xtot[1:, :] ), 'Ytot', np.shape( Ytot[1:] )
-	return ( Xtot[1:, :], Ytot[1:], legmat[1:] )
+	return ( Xtot[1:, :], Ytot[1:], legmat[1:], Rmattot )
 
-    def get_diff_array( self, SpDic, CtDic, alter = True ):
+    def get_diff_array( self, SpDic, CtDic, alter_height = True, alter_CSP = True ):
 
 	import numpy as np
 	ct_features = CtDic['auto_features'] # first column is residue number
@@ -84,7 +95,7 @@ class ProbEst( object ):
                 ( np.shape(ct_features)[0] * np.shape( SpDic['picked_features'] )[0], \
                 np.shape( SpDic['picked_features'] )[1] ) )
 
-	if alter:
+	if alter_height:
 	    # remove height change and avg height and replace with ratio
 	    Fsp = np.hstack( [ Fsp[:,:-2].reshape((Fsp.shape[0], Fsp.shape[1]-2)), Fsp[:, -2].reshape((Fsp.shape[0], 1)) / Fsp[:,-1].reshape((Fsp.shape[0],1)) ] )
 	    Fct = np.hstack( [ Fct[:,:-2].reshape((Fct.shape[0], Fct.shape[1]-2)), Fct[:, -2].reshape((Fct.shape[0], 1)) / Fct[:,-1].reshape((Fct.shape[0],1)) ] )
@@ -97,7 +108,7 @@ class ProbEst( object ):
         #        np.shape( SpDic['picked_features'] )[1] ) )
 	Xraw = Fct - Fsp # first column is residue number
 
-	if alter:
+	if alter_CSP:
 	    # extract weighted CSP
 	    Xdeldel = np.reshape( np.sum( np.abs( ( Xraw[:, :2] ) * self.scaling ), axis=1 ), (Xraw.shape[0], 1) )
 	    Xraw = np.hstack( [ Xdeldel, Xraw[:, 2:]] ) 
@@ -120,7 +131,7 @@ class ProbEst( object ):
 
 	legmat = np.hstack( [ cresvec, specvec, spechits ] )
 	###
-	Yraw = np.zeros( np.shape( ct_features )[0] * np.shape( SpDic['picked_features'] )[0] )
+	Yraw = np.zeros( ( np.shape( ct_features )[0] * np.shape( SpDic['picked_features'] )[0], 1 ) )
 	print 'Yraw size', np.shape(Yraw)
 
 	if 'full_info' in SpDic.keys():
@@ -131,8 +142,10 @@ class ProbEst( object ):
 		    blockindex = list(CtDic['full_info'][:,2]).index( resid )	    
 		    print 'Yraw hit @', blockindex * blocksize + fineindex 
 		    Yraw[ blockindex * blocksize + fineindex ] = 1
-	print 'Xraw', np.shape(Xraw), 'Yraw', np.shape(Yraw)
-	return (Xraw, Yraw, legmat)
+	Ynew = np.array( Yraw, dtype = int )
+	print 'Xraw', np.shape(Xraw), 'Ynew', np.shape(Ynew)
+	R_matrix = np.hstack( (Ynew, Xraw) )
+	return (Xraw, Ynew, legmat, R_matrix)
 
 
     def alter_Xy_standard(self):

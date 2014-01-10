@@ -14,4 +14,5 @@ a = pred_vec.ProbEst( fdd  )
 
 np.savetxt( os.path.join( curdir, 'pred_eg_01_X' ), a.Xtot ) 
 np.savetxt( os.path.join( curdir, 'pred_eg_01_Y' ), a.Ytot )
+np.savetxt( os.path.join( curdir, 'pred_eg_01_R_matrix.csv' ), a.R_matrix )
 np.savetxt( os.path.join( curdir, 'pred_eg_01_legmat' ), a.legmat, fmt = "%s" )
