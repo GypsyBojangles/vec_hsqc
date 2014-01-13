@@ -75,7 +75,7 @@ class ProbEst( object ):
 	    Xtot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] -1 ] )
 	    Rmattot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] ] )
 	Ytot = np.zeros((1,1))
-	legmat = np.zeros([1,3])
+	legmat = np.zeros([1,6])
 	###
 	for Sp in self.ImpObj.keys():
 	    if Sp != self.contname and Sp not in self.exclude_spectra:
@@ -104,7 +104,12 @@ class ProbEst( object ):
 	sp_titles = np.chararray( sp_resnums.shape, len( SpDic['spectrum_name'] ) )
 	sp_titles[:] = SpDic['spectrum_name']
 	
-	legsp = np.vstack( [ sp_pk_indices, sp_resnums, sp_titles ] )
+	sp_unit = np.hstack( [ sp_pk_indices, sp_resnums, sp_titles ] )
+	#print np.shape(ct_features), np.shape( SpDic['picked_features'] ), np.shape( sp_unit ) 
+	legsp = np.reshape( np.tile( sp_unit,  np.shape(ct_features)[0] ), \
+		( np.shape(ct_features)[0] * np.shape( SpDic['picked_features'] )[0], \
+		np.shape( sp_unit )[1] ) )
+
 
 	    #v1[ np.ix_( np.array(d1['control']['full_info'][:,1], dtype = int), [0] ) ] = np.array(d1['control']['full_info'][:,2]).reshape( d1['control']['full_info'].shape[0], 1 )
 		
@@ -119,8 +124,14 @@ class ProbEst( object ):
 	ct_titles = np.chararray( ct_resnums.shape, len( 'control' ) )
 	ct_titles[:] = 'control'
 	  
-	legsp = np.vstack( [ ct_pk_indices, ct_resnums, ct_titles ] )
+	ct_unit = np.hstack( [ ct_pk_indices, ct_resnums, ct_titles ] )
+	legct = np.reshape( np.tile( ct_unit.T,  np.shape( SpDic['picked_features'] )[0] ).T, \
+		( np.shape(ct_features)[0] * np.shape( SpDic['picked_features'] )[0], \
+		np.shape( ct_unit )[1] ) )
+	print legsp.shape, legct.shape
 
+	leg_all = np.hstack( [ legsp, legct ] )
+	
 
 	if alter_height:
 	    # remove height change and avg height and replace with ratio
@@ -172,7 +183,7 @@ class ProbEst( object ):
 	Ynew = np.array( Yraw, dtype = int )
 	print 'Xraw', np.shape(Xraw), 'Ynew', np.shape(Ynew)
 	R_matrix = np.hstack( (Ynew, Xraw) )
-	return (Xraw, Ynew, legmat, R_matrix)
+	return (Xraw, Ynew, leg_all, R_matrix)
 
 
     def alter_Xy_standard(self):
