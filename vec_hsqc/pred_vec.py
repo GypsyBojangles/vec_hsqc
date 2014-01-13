@@ -16,10 +16,10 @@ class PermData( object ):
 
 class ProbEst( object ):
 
-    def __init__( self, ImpObj, contname = 'control', exclude_spectra = [], scaling = [0.15, 1.0 ], alter_height = True, alter_CSP = True, **kwargs  ):
+    def __init__( self, contname = 'control', exclude_spectra = [], scaling = [0.15, 1.0 ], alter_height = True, alter_CSP = True, **kwargs  ):
 	"""Takes an object which is a dictionary of spectral features etc.
-	Ie a full_data_dict from an ImportNmrData instance.
-	Creates a feature difference matrix X and a vector Y
+	Ie a full_data_dict from an ImportNmrData instance. [via import_data]
+	Creates a feature difference matrix X and a vector Y [vie extract_features]
 	of correct answers.
 	If the imported data is not training data, then Y will read all false
 	"""
@@ -29,10 +29,16 @@ class ProbEst( object ):
 	self.alter_height = alter_height
 	self.alter_CSP = alter_CSP
 
-	self.ImpObj = ImpObj # dictionary of spectral features
+	#self.ImpObj = ImpObj # dictionary of spectral features
 	
-	self.Xtot, self.Ytot, self.legmat, self.R_matrix = self.create_Xy_basic( alter_height = self.alter_height, alter_CSP = self.alter_CSP ) # driver
+	#self.Xtot, self.Ytot, self.legmat, self.R_matrix = self.create_Xy_basic( alter_height = self.alter_height, alter_CSP = self.alter_CSP ) # driver
 
+
+    def import_data( self, ImpObj ):
+	self.ImpObj = ImpObj # dictionary of spectral features
+
+    def extract_features( self, alter_height = True, alter_CSP = True ):
+	self.Xtot, self.Ytot, self.legmat, self.R_matrix = self.create_Xy_basic( alter_height = self.alter_height, alter_CSP = self.alter_CSP ) # driver
 
 
     def create_Xy_basic( self, alter_height = True, alter_CSP = True ):
@@ -91,9 +97,30 @@ class ProbEst( object ):
 		( np.shape(ct_features)[0] * np.shape( SpDic['picked_features'] )[0], \
 		np.shape( SpDic['picked_features'] )[1] ) )
 
+	sp_resnums = np.zeros( ( SpDic['picked_features'].shape[0], 1 ) )
+	sp_pk_indices = np.array( [ b for b in range( SpDic['picked_features'].shape[0] ) ] ).reshape( SpDic['picked_features'].shape[0], 1 )
+	if 'full_info' in SpDic.keys():
+	    sp_resnums[ np.ix_( np.array(SpDic['full_info'][:,1], dtype = int), [0] ) ] = np.array( SpDic['full_info'][:,2]).reshape( SpDic['full_info'].shape[0], 1 )
+	sp_titles = np.chararray( sp_resnums.shape, len( SpDic['spectrum_name'] ) )
+	sp_titles[:] = SpDic['spectrum_name']
+	
+	legsp = np.vstack( [ sp_pk_indices, sp_resnums, sp_titles ] )
+
+	    #v1[ np.ix_( np.array(d1['control']['full_info'][:,1], dtype = int), [0] ) ] = np.array(d1['control']['full_info'][:,2]).reshape( d1['control']['full_info'].shape[0], 1 )
+		
+
+
 	Fct = np.reshape( np.tile( ct_features[:,1:].T, np.shape( SpDic['picked_features'])[0] ).T, \
                 ( np.shape(ct_features)[0] * np.shape( SpDic['picked_features'] )[0], \
                 np.shape( SpDic['picked_features'] )[1] ) )
+
+	ct_resnums = CtDic['auto_features'][:,0].reshape( ct_features.shape[0], 1)
+	ct_pk_indices = np.array( [ b for b in range(ct_features.shape[0]) ] ).reshape( ct_features.shape[0], 1 )
+	ct_titles = np.chararray( ct_resnums.shape, len( 'control' ) )
+	ct_titles[:] = 'control'
+	  
+	legsp = np.vstack( [ ct_pk_indices, ct_resnums, ct_titles ] )
+
 
 	if alter_height:
 	    # remove height change and avg height and replace with ratio
