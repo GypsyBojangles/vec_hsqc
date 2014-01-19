@@ -15,6 +15,10 @@ class SpectrumPick( object ):
     """
     def __init__(self, spectrum, control_spectrum, protein, **kwargs):
 
+	"""Note that 'msep parameter controls the minimum peak separation in datapoints for each dimension
+
+	"""
+
 	self.spectrum = spectrum
 	self.control_spectrum = control_spectrum
 	self.protein = protein
@@ -348,7 +352,10 @@ class ImportNmrData( object ):
 	cloindices = [ [ b, clo2ass[b] ] for b in range( len( clo2ass ) ) if clo2picked[ clo2ass[b] ] == b and distances[ b, clo2ass[b] ] < self.dist_cutoff ] 
 	# extract assignable resonances and the correponding picked peaks
 	# first the quick way ? (if it works)
-	auto_ass = assigned[ np.ix_( [ b[0] for b in cloindices ] ) ]	
+	auto_peak_resnum = assigned[ np.ix_( [ b[0] for b in cloindices ] ) ][:, 0]	
+	auto_peak_shifts = peaks[ np.ix_( [ b[1] for b in cloindices ] ) ]
+	auto_ass = np.hstack( [ auto_peak_resnum.reshape( auto_peak_resnum.shape[0], 1 ), auto_peak_shifts ] )
+	#auto_ass = assigned[ np.ix_( [ b[0] for b in cloindices ] ) ]	
 	auto_locs = np.array( self.get_peak_indices( SP_obj, auto_ass ) ) # peaklist as data array indices	
 	# then the slow way??
 	assigned = np.array( [ assigned[ b[0] ][0] for b in cloindices ] )
@@ -368,7 +375,7 @@ class ImportNmrData( object ):
 	rlw_assigned = lw_N_assigned / lw_H_assigned
 	h_assigned = heights[ np.ix_( answers ) ]
 	rh_assigned = height_ratios[ np.ix_( answers ) ]
-	print np.shape(auto_ass), np.shape( lws ), np.shape( h_assigned ) 
+	#print np.shape(auto_ass), np.shape( lws ), np.shape( h_assigned ) 
 	avgheightvec = np.ones( (np.shape( auto_ass )[0], 1) ) * SP_obj.avgheight
 	auto_features = np.hstack( [ auto_ass, lws, np.reshape( h_assigned, ( np.shape( h_assigned )[0], 1 ) ), avgheightvec ] )
         n_assigned_peaks = len( cloindices )
