@@ -38,7 +38,7 @@ class ProbEst( object ):
 	self.ImpObj = ImpObj # dictionary of spectral features
 
     def extract_features( self, alter_height = True, alter_CSP = True ):
-	self.Xtot, self.Ytot, self.legmat, self.R_matrix = self.create_Xy_basic( alter_height = self.alter_height, alter_CSP = self.alter_CSP ) # driver
+	self.Xtot, self.Ytot, self.legmat, self.R_matrix, self.negnum, self.posnum = self.create_Xy_basic( alter_height = self.alter_height, alter_CSP = self.alter_CSP ) # driver
 
 
     def create_Xy_basic( self, alter_height = True, alter_CSP = True ):
@@ -85,7 +85,9 @@ class ProbEst( object ):
 		Ytot = np.concatenate( [Ytot, Ysp] ) 
 		legmat = np.vstack( [ legmat, legsp ] )
 	print 'Xtot', np.shape( Xtot[1:, :] ), 'Ytot', np.shape( Ytot[1:] )
-	return ( Xtot[1:, :], Ytot[1:], legmat[1:], Rmattot )
+	Ytot = np.array( Ytot, dtype = int )
+	negnum, posnum =  np.bincount( Ytot[1:].reshape( Ytot[1:].shape[0] ) ) #bincount only works on n-dimensional vector, not n X 1 array
+	return ( Xtot[1:, :], Ytot[1:], legmat[1:,:], Rmattot[1:,:], negnum, posnum )
 
     def get_diff_array( self, SpDic, CtDic, alter_height = True, alter_CSP = True ):
 
@@ -104,7 +106,8 @@ class ProbEst( object ):
 	sp_titles = np.chararray( sp_resnums.shape, len( SpDic['spectrum_name'] ) )
 	sp_titles[:] = SpDic['spectrum_name']
 	
-	sp_unit = np.hstack( [ sp_pk_indices, sp_resnums, sp_titles ] )
+	sp_unit = np.hstack( [ sp_titles, sp_pk_indices, sp_resnums ] )
+	#sp_unit = np.hstack( [ sp_pk_indices, sp_resnums, sp_titles ] )
 	#print np.shape(ct_features), np.shape( SpDic['picked_features'] ), np.shape( sp_unit ) 
 	legsp = np.reshape( np.tile( sp_unit,  np.shape(ct_features)[0] ), \
 		( np.shape(ct_features)[0] * np.shape( SpDic['picked_features'] )[0], \
@@ -121,10 +124,11 @@ class ProbEst( object ):
 
 	ct_resnums = CtDic['auto_features'][:,0].reshape( ct_features.shape[0], 1)
 	ct_pk_indices = np.array( [ b for b in range(ct_features.shape[0]) ] ).reshape( ct_features.shape[0], 1 )
-	ct_titles = np.chararray( ct_resnums.shape, len( 'control' ) )
-	ct_titles[:] = 'control'
+	ct_titles = np.chararray( ct_resnums.shape, len( 'control:' + CtDic['spectrum_name']  ) )
+	ct_titles[:] = 'control:' + CtDic['spectrum_name'] 
 	  
-	ct_unit = np.hstack( [ ct_pk_indices, ct_resnums, ct_titles ] )
+	ct_unit = np.hstack( [ ct_titles, ct_pk_indices, ct_resnums ] )
+	#ct_unit = np.hstack( [ ct_pk_indices, ct_resnums, ct_titles ] )
 	legct = np.reshape( np.tile( ct_unit.T,  np.shape( SpDic['picked_features'] )[0] ).T, \
 		( np.shape(ct_features)[0] * np.shape( SpDic['picked_features'] )[0], \
 		np.shape( ct_unit )[1] ) )
@@ -148,7 +152,8 @@ class ProbEst( object ):
 
 	if alter_CSP:
 	    # extract weighted CSP
-	    Xdeldel = np.reshape( np.sum( np.abs( ( Xraw[:, :2] ) * self.scaling ), axis=1 ), (Xraw.shape[0], 1) )
+	    #Xdeldel = np.reshape( np.sum( np.abs( ( Xraw[:, :2] ) * self.scaling ), axis=1 ), (Xraw.shape[0], 1) )
+	    Xdeldel = np.reshape( np.sum((( Xraw[:, :2] * self.scaling )**2), axis = 1)**0.5, (Xraw.shape[0], 1) )
 	    Xraw = np.hstack( [ Xdeldel, Xraw[:, 2:]] ) 
 
 	### create legend vectors and then combine into legend matrix
@@ -180,6 +185,9 @@ class ProbEst( object ):
 		    blockindex = list(CtDic['full_info'][:,2]).index( resid )	    
 		    print 'Yraw hit @', blockindex * blocksize + fineindex 
 		    Yraw[ blockindex * blocksize + fineindex ] = 1
+	###new attempt at Y
+	Yraw = np.array(  leg_all[:,2] == leg_all[:,5], dtype = int ).reshape( ct_features.shape[0] * SpDic['picked_features'].shape[0], 1 )
+	###
 	Ynew = np.array( Yraw, dtype = int )
 	print 'Xraw', np.shape(Xraw), 'Ynew', np.shape(Ynew)
 	R_matrix = np.hstack( (Ynew, Xraw) )

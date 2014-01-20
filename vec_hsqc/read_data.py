@@ -125,7 +125,7 @@ class ImportNmrData( object ):
         #self.control_peaklist = control_peaklist
         #self.protein = protein
         #self.db = db
-        default_dict = { 'import_type' : 'Training', 'msep' : (10,10), 'scaling' : [0.15, 1.0], 'table' : False, 'cluster' : False, 'threshold' : False, 'spectrum_type' : 'Sparky', 'peaklist_type' : 'Sparky', 'dist_cutoff' : 0.1, 'db_write' : True }
+        default_dict = { 'import_type' : 'Training', 'msep' : (10,10), 'scaling' : [0.15, 1.0], 'table' : False, 'cluster' : False, 'threshold' : False, 'spectrum_type' : 'Sparky', 'peaklist_type' : 'Sparky', 'dist_cutoff' : 0.02, 'db_write' : True }
         for (kw, v) in default_dict.iteritems():
             setattr(self, kw, v)
         for (kw, v) in kwargs.iteritems():
@@ -342,7 +342,8 @@ class ImportNmrData( object ):
 	peakcomp = np.reshape( np.tile( peaks.T, n_asspeaks ).T, ( n_asspeaks, n_peaks, 2 ) )   
 	# calculate distance matrix
 	raw_distances = asscomp - peakcomp
-	distances = np.sum( np.abs( ( raw_distances ) * self.scaling ), axis=2 )
+	#distances = np.sum( np.abs( ( raw_distances ) * self.scaling ), axis=2 )
+	distances = np.sum((( raw_distances * self.scaling )**2), axis = 2)**0.5
 	# find closest peaks to assigned
 	clo2ass = np.argmin( distances, axis=1 )
 	# find closest assigned to picked
