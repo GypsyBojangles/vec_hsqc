@@ -4,6 +4,10 @@ import numpy as np
 import os
 from sklearn.utils.extmath import safe_sparse_dot
 
+
+
+
+
 curdir = os.path.dirname( os.path.abspath( __file__ ) )
 
 
@@ -51,7 +55,8 @@ def krpredict(X, theta, bias, classes):
 
 	y = m-length vector of predictions
     
-
+	Based upon functions found in class 'LinearClassifierMixin'
+	within sklearn module '/usr/local/lib/python2.7/dist-packages/sklearn/linear_model/base.py'
 
         """
 
