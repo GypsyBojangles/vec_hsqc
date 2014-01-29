@@ -21,11 +21,14 @@ old*
 *.txt
 X
 Y
+y
+yp*
 Z
 *01
 *.pickle
 *X
 *Y
+skl_log_pred_y
 *.npy
 *.csv
 *.db

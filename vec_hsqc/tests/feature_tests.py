@@ -192,7 +192,8 @@ class TestInput( unittest.TestCase ):
 
 
     def test_feature_both(self):
-	"""Check the X matrix generation in case where only CSP alteration is in place
+	"""Check the X matrix generation in case where BOTH CSP alteration 
+	and feature height alterations are in place
 
 	"""
 	b1 = vec_hsqc.pred_vec.ProbEst( scaling = [0.15, 1.0] )
