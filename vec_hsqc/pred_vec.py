@@ -1,6 +1,10 @@
 #! /usr/bin/env python
 
 from __future__ import division # must occur at beginning of file
+from sklearn import linear_model
+import numpy as np
+import os
+from sklearn.utils.extmath import safe_sparse_dot
 
 class PermData( object ):
 
@@ -38,7 +42,7 @@ class ProbEst( object ):
 	self.ImpObj = ImpObj # dictionary of spectral features
 
     def extract_features( self, alter_height = True, alter_CSP = True ):
-	self.Xtot, self.Ytot, self.legmat, self.R_matrix, self.negnum, self.posnum = self.create_Xy_basic( alter_height = self.alter_height, alter_CSP = self.alter_CSP ) # driver
+	self.Xtot, self.Ytot, self.legmat, self.R_matrix = self.create_Xy_basic( alter_height = self.alter_height, alter_CSP = self.alter_CSP ) # driver
 
 
     def create_Xy_basic( self, alter_height = True, alter_CSP = True ):
@@ -86,8 +90,7 @@ class ProbEst( object ):
 		legmat = np.vstack( [ legmat, legsp ] )
 	print 'Xtot', np.shape( Xtot[1:, :] ), 'Ytot', np.shape( Ytot[1:] )
 	Ytot = np.array( Ytot, dtype = int )
-	negnum, posnum =  np.bincount( Ytot[1:].reshape( Ytot[1:].shape[0] ) ) #bincount only works on n-dimensional vector, not n X 1 array
-	return ( Xtot[1:, :], Ytot[1:], legmat[1:,:], Rmattot[1:,:], negnum, posnum )
+	return ( Xtot[1:, :], Ytot[1:], legmat[1:,:], Rmattot[1:,:] )
 
     def get_diff_array( self, SpDic, CtDic, alter_height = True, alter_CSP = True ):
 
@@ -198,16 +201,100 @@ class ProbEst( object ):
 
 	pass
 	
+class PredMetrics( object ):
 
-class PredLog( object ):
+    def __init__(self):
 
-    def __init__(self, X, y, lmd = 1, options = {'full_output': True} ):
+
+	self.trainpos = None
+	self.predpos = None
+	self.trainneg = None
+	self.predneg = None
+	self.falseneg = None
+	self.trueneg = None
+	self.falsepos = None
+	self.truepos = None
+	self.precision = None
+	self.recall = None
+	self.accuracy = None
+	self.F1score = None
+
+    def _standard_measures_binary( self, y_train, y_pred , verbose=False):
+
+	
+	trainind = np.nonzero( y_train == 1 )[0]
+	trainfalseind = np.nonzero( y_train == 0 )[0]
+	predind = np.nonzero( y_pred == 1 )[0]
+	predfalseind = np.nonzero( y_pred == 0 )[0]
+	self.trainpos = trainind.shape[0]
+	self.predpos = predind.shape[0]
+	self.trainneg = trainfalseind.shape[0]
+	self.predneg = predfalseind.shape[0]
+	self.falseneg = len( np.setdiff1d( trainind, predind ) )
+	self.trueneg = predfalseind.shape[0] - self.falseneg 
+	self.falsepos = len( np.setdiff1d( predind, trainind ) )
+	self.truepos = predind.shape[0] - self.falsepos
+	print self.truepos, self.falsepos, self.trueneg, self.falseneg
+	self.precision = self.truepos / ( self.truepos + self.falsepos )
+	self.recall = self.truepos / ( self.truepos + self.falseneg )
+	self.accuracy = (y_train == y_pred).mean()
+	self.F1score = 2 * self.precision * self.recall / ( self.precision + self.recall ) 
+
+	if verbose:
+
+	    print 'predicted positives =', self.predpos, '\n'
+	    print 'actual positives =', self.trainpos, '\n'
+	    print 'predicted negatives =', self.predneg, '\n'
+	    print 'actual negatives =', self.trainneg, '\n'
+	    print 'precision =', self.precision, '\n'
+	    print 'recall =', self.recall, '\n'
+	    print 'accuracy =', self.accuracy, '\n'
+	    print 'F1score =', self.F1score, '\n'
+
+
+class PredLog( PredMetrics ):
+
+    def __init__(self, X=None, y=None, C = 1e5, theta=None, bias=0., classes=np.array([0.,1.]), options = {'full_output': True} ):
+	"""Accepts the following parameters:
+		feature matrix 'X', 
+		[classification vector 'y']
+		[scalar 'C' (for regularisation)]
+		[parameters vector 'theta']
+		[bias scalar [or vector] 'bias']
+		[vector with classification ids 'classes']
+		
+
+
+	"""
 
 	import numpy as np
 	from numpy import c_
-	self.X = np.mat( np.abs(X) )
-	self.y = c_[ y ]
-	self.lmd = lmd
+	#self.X = np.mat( np.abs(X) )
+	#self.y = c_[ y ]
+	self.C = C
+
+	if X is not None:
+	    self.X = X
+	else:
+	    self.X = np.zeros( (1,4) )
+	
+
+	if y is not None:
+	    y = y.ravel()
+	    self.y = y
+	else:
+	    self.y = np.zeros( self.X.shape[0] )
+	
+	if theta is not None:
+	    self.theta = theta
+	else:
+	    self.theta = np.zeros( self.X.shape[1] )
+
+	self.classes = classes	
+	self.bias = bias
+
+
+	#self.lmd = lmd
 	self.options = options
 
     def fscale( self ):
@@ -225,6 +312,47 @@ class PredLog( object ):
 	self.X = Xsc	
 	
 
+    def fit( self ):
+	"""Uses scikit-learn logistic regression class.
+	
+
+
+	"""
+	logistic = linear_model.LogisticRegression( C = self.C )
+	logistic.fit( self.X, self.y )
+	self.theta = logistic.coef_
+	self.bias = logistic.intercept_
+	self.classes = logistic.classes_ #simply an array, in this binary case np.array([0.,1.])
+
+    def binary_predict( self, X ):
+	"""Lightweight way to run logistic predictions 
+	from pre-defined parameters without the need to
+	perform fit.
+
+	Parameters:
+	1) X = m X n matrix (np 2d-array) of features
+	2) theta = n-length vector of parameters
+	3) bias = scalar bias term
+	4) classes = np array of classes present.  For example,
+	in the binary case, this would be np.array([0.0, 1.0])
+
+	Returns:
+
+	y = m-length vector of predictions
+    
+	Based upon functions found in class 'LinearClassifierMixin'
+	within sklearn module '/usr/local/lib/python2.7/dist-packages/sklearn/linear_model/base.py'
+
+        """
+
+        scores = safe_sparse_dot( X, self.theta.T) + self.bias
+        if scores.shape[1] == 1:
+	    scores = scores.ravel()
+        indices = (scores > 0).astype(np.int)
+        y_pred = self.classes[ indices ]
+	if len(y_pred.shape) == 2 and y_pred.shape[0] == 1:
+	    y_pred = y_pred.T.ravel()
+	self.y_pred = y_pred.ravel()
 
     def sigmoid(self, z):
 
@@ -288,4 +416,5 @@ class PredLog( object ):
 
 	print 'Train Accuracy:', (p == self.y).mean() * 100
 	print str(self.theta)
-	
+
+

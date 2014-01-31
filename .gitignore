@@ -12,7 +12,8 @@ first500k_prediction
 *.swn
 scaled_x_500k
 training_eg_01
-pred_eg_01*
+pred_eg*
+query_eg*
 clomp*
 *.pyc
 *.swp

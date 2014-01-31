@@ -276,7 +276,7 @@ class ImportNmrData( object ):
 		#'assigned_peaks' : sp_assigned_peaks, 'auto_ass' : auto_ass,
 		#'full_info' : full_info }
 
-		if import_type == 'Training':
+		if import_type in ('Training', 'Test'):
                     auto_features, auto_ass, sp_assigned_peaks, answers, index_peaks_manual, index_peaks_auto, full_info = self.find_nearest_assign( ass_list, SPobj ) ###
 		    full_data_dict[ opath.split( sp )[-1] ]['auto_features'] = auto_features
 		    full_data_dict[ opath.split( sp )[-1] ]['auto_peaklist'] = auto_ass
