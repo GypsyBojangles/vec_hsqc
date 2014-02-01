@@ -21,7 +21,7 @@ a.extract_features( )
 
 
 
-np.savetxt( os.path.join( curdir, 'query_eg_01_X' ), a.Xtot ) 
-np.savetxt( os.path.join( curdir, 'query_eg_01_Y' ), a.Ytot )
-np.savetxt( os.path.join( curdir, 'query_eg_01_R_matrix.csv' ), a.R_matrix )
-np.savetxt( os.path.join( curdir, 'query_eg_01_legmat' ), a.legmat, fmt = "%s" )
+np.savetxt( os.path.join( curdir, 'query_eg_02_X' ), np.hstack( ( a.Xtot[:,0].reshape( a.Xtot.shape[0], 1 ), a.Xtot[:,3:-2], a.Xtot[:,-1].reshape( a.Xtot.shape[0], 1 ) ) ) ) 
+np.savetxt( os.path.join( curdir, 'query_eg_02_Y' ), a.Ytot )
+np.savetxt( os.path.join( curdir, 'query_eg_02_R_matrix.csv' ), a.R_matrix )
+np.savetxt( os.path.join( curdir, 'query_eg_02_legmat' ), a.legmat, fmt = "%s" )

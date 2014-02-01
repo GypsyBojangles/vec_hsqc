@@ -68,32 +68,33 @@ SpDic['full_info'] = CtDic['full_info'] = \
 		[ 2.0e+00, 2.0e+00, 1.2e+01, 1.24000000e+02,   6.00000000e+00]
 		] )
 
-exp_X = np.array(
-       [[  0.00000000e+00,   0.00000000e+00,   0.00000000e+00,
+
+
+exp_X = np.array([[  0.00000000e+00,   0.00000000e+00,   0.00000000e+00,
           0.00000000e+00,   0.00000000e+00,   0.00000000e+00],
-       [  4.00000000e+00,   2.00000000e-01,   1.00000000e+01,
-          8.00000000e+00,   1.00000000e+07,   0.00000000e+00],
-       [  1.00000000e+01,   1.20000000e+00,   2.00000000e+01,
+       [ -4.00000000e+00,   2.00000000e-01,   1.00000000e+01,
+         -8.00000000e+00,   1.00000000e+07,   0.00000000e+00],
+       [ -1.00000000e+01,   1.20000000e+00,   2.00000000e+01,
           2.00000000e+01,   2.00000000e+07,   0.00000000e+00],
-       [  4.00000000e+00,   2.00000000e-01,   1.00000000e+01,
-          8.00000000e+00,   1.00000000e+07,   0.00000000e+00],
+       [  4.00000000e+00,  -2.00000000e-01,  -1.00000000e+01,
+          8.00000000e+00,  -1.00000000e+07,   0.00000000e+00],
        [  0.00000000e+00,   0.00000000e+00,   0.00000000e+00,
           0.00000000e+00,   0.00000000e+00,   0.00000000e+00],
-       [  6.00000000e+00,   1.00000000e+00,   1.00000000e+01,
+       [ -6.00000000e+00,   1.00000000e+00,   1.00000000e+01,
           2.80000000e+01,   1.00000000e+07,   0.00000000e+00],
-       [  1.00000000e+01,   1.20000000e+00,   2.00000000e+01,
-          2.00000000e+01,   2.00000000e+07,   0.00000000e+00],
-       [  6.00000000e+00,   1.00000000e+00,   1.00000000e+01,
-          2.80000000e+01,   1.00000000e+07,   0.00000000e+00],
+       [  1.00000000e+01,  -1.20000000e+00,  -2.00000000e+01,
+         -2.00000000e+01,  -2.00000000e+07,   0.00000000e+00],
+       [  6.00000000e+00,  -1.00000000e+00,  -1.00000000e+01,
+         -2.80000000e+01,  -1.00000000e+07,   0.00000000e+00],
        [  0.00000000e+00,   0.00000000e+00,   0.00000000e+00,
-          0.00000000e+00,   0.00000000e+00,   0.00000000e+00]]
-	)
+          0.00000000e+00,   0.00000000e+00,   0.00000000e+00]])
+
 
 exp_Y = np.array( [1,0,0,0,1,0,0,0,1] ).reshape(9,1)
 
 #sp_hrs = ct_hrs = np.array([  5.,  10.,  15.]).reshape(3,1) # height ratio feature introduced prior to difference
 
-X_hrs = np.array( [0., 5., 10., 5., 0., 5., 10., 5., 0. ] ).reshape(9,1) #expected column in altered feature marray
+X_hrs = np.array( [0., 5., 10., -5., 0., 5., -10., -5., 0. ] ).reshape(9,1) #expected column in altered feature marray
 
 scaling = np.array( [0.15, 1.] )
 
@@ -151,31 +152,31 @@ class TestInput( unittest.TestCase ):
 	self.assertTrue( check  ) 
 	 
 
-    def test_feature_ind(self):
+    def obsolete_test_feature_ind(self):
 	"""Check the X matrix generation
 
 	"""
 	b1 = vec_hsqc.pred_vec.ProbEst( scaling = [0.15, 1.0] )
 	#print '\nCtDic keys =', CtDic.keys(), '\n'
-	X, Y, legmat, Rmat = b1.get_diff_array( SpDic, CtDic, alter_height = False, alter_CSP = False )
-	#print '\n', X, '\n\n', exp_X, '\n'
+	X, Y, legmat, Rmat, Fct, Fsp = b1.get_diff_array( SpDic, CtDic )
+	print '\n', X, '\n\n', exp_X, '\n'
 	check = (np.abs(exp_X) == np.abs(X) ).all()
 	#print '\n\n', np.array( np.abs(exp_X), dtype = float ) - np.array( np.abs(X), dtype=float), '\n\n'
 	#print 'check =', check
 	#print '\n\n', X.dtype, exp_X.dtype, '\n\n'
 	#print exp_Y, '\n\n', Y, '\n\n', exp_Y.shape, Y.shape, '\n\n'
 	#print legmat, '\n\n', Rmat, '\n\n'
-	self.assertTrue( np.allclose( exp_X, np.abs(X)  ))
+	self.assertTrue( np.allclose( exp_X, X  ))
 	self.assertTrue( ( exp_Y == np.array( Y, dtype = int ) ).all() )
 	self.assertTrue( ( exp_legmat == legmat ).all() )
 	
-    def test_feature_CSP_only(self):
+    def obsolete_test_feature_CSP_only(self):
 	"""Check the X matrix generation in case where only CSP alteration is in place
 
 	"""
 	b1 = vec_hsqc.pred_vec.ProbEst( scaling = [0.15, 1.0] )
 	#print '\nCtDic keys =', CtDic.keys(), '\n'
-	X, Y, legmat, Rmat = b1.get_diff_array( SpDic, CtDic, alter_height = False, alter_CSP = True )
+	X, Y, legmat, Rmat = b1.get_diff_array( SpDic, CtDic )
 	#print '\n', X, '\n\n', exp_X, '\n'
 	#check = (np.abs(exp_X) == np.abs(X) ).all()
 	#print '\n\n', np.array( np.abs(exp_X), dtype = float ) - np.array( np.abs(X), dtype=float), '\n\n'
@@ -184,9 +185,9 @@ class TestInput( unittest.TestCase ):
 	#print exp_Y, '\n\n', Y, '\n\n', exp_Y.shape, Y.shape, '\n\n'
 	#print legmat, '\n\n', Rmat, '\n\n'
 	#print '\n\n' 
-	CSP_X = np.hstack( [ CSPs_scaled, exp_X[:, 2:] ] )
+	CSP_X = np.hstack( [ CSPs_scaled, exp_X ] )
 	#print '\n\n CSP_X =', CSP_X, '\n\nX =', X, '\n\n'
-	self.assertTrue( np.allclose( CSP_X, np.abs(X)  ))
+	self.assertTrue( np.allclose( CSP_X, X  ))
 	self.assertTrue( ( exp_Y == np.array( Y, dtype = int ) ).all() )
 	self.assertTrue( ( exp_legmat == legmat ).all() )
 
@@ -197,22 +198,22 @@ class TestInput( unittest.TestCase ):
 
 	"""
 	b1 = vec_hsqc.pred_vec.ProbEst( scaling = [0.15, 1.0] )
-	X, Y, legmat, Rmat = b1.get_diff_array( SpDic, CtDic, alter_height = True, alter_CSP = True )
-	both_X = np.hstack( [ CSPs_scaled, exp_X[:, 2:-2], X_hrs ] )
+	X, Y, legmat, Rmat, Fct, Fsp = b1.get_diff_array( SpDic, CtDic )
+	both_X = np.hstack( [ CSPs_scaled, exp_X[:, :-1], X_hrs ] )
 	print '\n\nX =', X, '\n\nboth_X =', both_X
-	self.assertTrue( np.allclose( both_X, np.abs(X)  ))
+	self.assertTrue( np.allclose( both_X, X  ))
 	self.assertTrue( ( exp_Y == np.array( Y, dtype = int ) ).all() )
 	self.assertTrue( ( exp_legmat == legmat ).all() )
 
-    def test_feature_height_ratio_only(self):
+    def obsolete_test_feature_height_ratio_only(self):
 	"""Check the X matrix generation in case where only CSP alteration is in place
 
 	"""
 	b1 = vec_hsqc.pred_vec.ProbEst( scaling = [0.15, 1.0] )
-	X, Y, legmat, Rmat = b1.get_diff_array( SpDic, CtDic, alter_height = True, alter_CSP = False )
-	hr_X = np.hstack( [ exp_X[:, :-2], X_hrs ] )
+	X, Y, legmat, Rmat, Fct, Fsp = b1.get_diff_array( SpDic, CtDic )
+	hr_X = np.hstack( [ exp_X[:, :-1], X_hrs ] )
 	#print '\n\nX =', X, '\n\nboth_X =', both_X
-	self.assertTrue( np.allclose( hr_X, np.abs(X)  ))
+	self.assertTrue( np.allclose( hr_X, X  ))
 	self.assertTrue( ( exp_Y == np.array( Y, dtype = int ) ).all() )
 	self.assertTrue( ( exp_legmat == legmat ).all() )
 

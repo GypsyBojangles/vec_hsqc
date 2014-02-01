@@ -19,8 +19,20 @@ class PermData( object ):
 
 
 class ProbEst( object ):
+    """
 
-    def __init__( self, contname = 'control', exclude_spectra = [], scaling = [0.15, 1.0 ], alter_height = True, alter_CSP = True, **kwargs  ):
+
+    Important to note that observations from non-control spectra are subtracted from control spectra observations.
+    For example, the features extracted for a peak on a non-control spectrum will include:
+    -the change in 15N chemical shift, as: d15N(control) - d15N(non-control)
+    -the change in 1H linewidth as: lwH(control) - lwH(non-control)
+    ...and so forth
+
+    """
+
+
+
+    def __init__( self, contname = 'control', exclude_spectra = [], scaling = [ 0.15, 1.0 ], **kwargs  ):
 	"""Takes an object which is a dictionary of spectral features etc.
 	Ie a full_data_dict from an ImportNmrData instance. [via import_data]
 	Creates a feature difference matrix X and a vector Y [vie extract_features]
@@ -30,69 +42,66 @@ class ProbEst( object ):
 	self.contname = contname
 	self.exclude_spectra = exclude_spectra
 	self.scaling = scaling
-	self.alter_height = alter_height
-	self.alter_CSP = alter_CSP
 
-	#self.ImpObj = ImpObj # dictionary of spectral features
 	
-	#self.Xtot, self.Ytot, self.legmat, self.R_matrix = self.create_Xy_basic( alter_height = self.alter_height, alter_CSP = self.alter_CSP ) # driver
 
 
     def import_data( self, ImpObj ):
 	self.ImpObj = ImpObj # dictionary of spectral features
 
-    def extract_features( self, alter_height = True, alter_CSP = True ):
-	self.Xtot, self.Ytot, self.legmat, self.R_matrix = self.create_Xy_basic( alter_height = self.alter_height, alter_CSP = self.alter_CSP ) # driver
+    def extract_features( self ):
+	self.Xtot, self.Ytot, self.legmat, self.R_matrix, self.Fct, self.Fsp = self.create_Xy_basic(  ) # driver
 
 
-    def create_Xy_basic( self, alter_height = True, alter_CSP = True ):
+    def create_Xy_basic( self ):
 	"""Basically a constructor for large matrices as follows:
+
 	(1) 'Xtot' is an (m X 6) matrix containing rows of raw differences for each
 	peak in each query spectrum, compared to all peaks from a given control.
 	Each row represents one such query vs control difference and contains the following
-	entries: (delta 15N ppm), (delta 1H ppm), (delta linewidth 15N), 
-	(delta linewidth 1H), (delta height), (avg height for spectrum).  
+	entries: 
+	<weighted ave CSP>, <delta 15N ppm>, <delta 1H ppm>, <delta linewidth 15N>, 
+	<delta linewidth 1H>, <delta height>, <delta(height / avg height) >.  
 	Rows are in repeating blocks of peaks for
-	each query spectrum, with each successinve block iterating through the possible
+	each query spectrum, with each successive block iterating through the possible
 	control spectrum options.
+
 	(2) 'Ytot' is an (m X 1) vector where, in the case of training data,
 	1 indicates a correct assignment and zero indicates an incorrect assignment.
-	In the case of query data, Y will be all zeros.
-	(3) 'legmat' the legend matrix is (m X 3) and contains antrie of
-	(control residue assignment #), (spectrum name), (spectral autoassign res num)
-	!!! THIS LAST ENTRY IS CURRENTLY INCORRECT - NEEDS WORK
+	In the case of [non-test] query data, Y will be all zeros.
+
+	(3) 'legmat' the legend matrix is (m X 6) and contains entries of
+	<non-control spectrum name>, <non-control peak index>, < non-control autoassign res num (zeros if not)>,
+	"control:" + <control spectrum name>, <control peak index>, <control autoassign res num (zeros if not)>
 
 	"""
 
 	import numpy as np
-	#initialise X, Y
+	#initialise X, Y, etc
 	print type( self.ImpObj[ self.contname ]['picked_features'] )
-	Xtot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] ] )
-	Rmattot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] + 1 ] )
-	if alter_height and alter_CSP:
-	    Xtot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] -2 ] )
-	    Rmattot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] - 1 ] )
-	elif alter_CSP:
-	    Xtot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] -1 ] )
-	    Rmattot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] ] )
-	elif alter_height:
-	    Xtot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] -1 ] )
-	    Rmattot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] ] )
+	
+	Xtot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] + 1 ] )
+	Fct_tot = Fsp_tot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] ] )
+	Rmattot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] + 2 ] )
 	Ytot = np.zeros((1,1))
 	legmat = np.zeros([1,6])
 	###
 	for Sp in self.ImpObj.keys():
 	    if Sp != self.contname and Sp not in self.exclude_spectra:
-		Xsp, Ysp, legsp, Rmat = self.get_diff_array( self.ImpObj[ Sp ], self.ImpObj[ self.contname ], alter_height = alter_height, alter_CSP = alter_CSP )
+		Xsp, Ysp, legsp, Rmat, Fct, Fsp = self.get_diff_array( self.ImpObj[ Sp ], self.ImpObj[ self.contname ] )
+		print Xtot.shape, Ytot.shape, legmat.shape, Rmattot.shape, Fct_tot.shape, Fsp_tot.shape
+		print Xsp.shape, Ysp.shape, legsp.shape, Rmat.shape, Fct.shape, Fsp.shape
 		Xtot = np.vstack( [Xtot, Xsp ] )
+		Fct_tot = np.vstack( [Fct_tot, Fct ] )
+		Fsp_tot = np.vstack( [Fsp_tot, Fsp ] )
 		Rmattot = np.vstack( [Rmattot, Rmat ] )
 		Ytot = np.concatenate( [Ytot, Ysp] ) 
 		legmat = np.vstack( [ legmat, legsp ] )
 	print 'Xtot', np.shape( Xtot[1:, :] ), 'Ytot', np.shape( Ytot[1:] )
 	Ytot = np.array( Ytot, dtype = int )
-	return ( Xtot[1:, :], Ytot[1:], legmat[1:,:], Rmattot[1:,:] )
+	return ( Xtot[1:, :], Ytot[1:], legmat[1:,:], Rmattot[1:,:], Fct_tot[1:,:], Fsp_tot[1:,:] )
 
-    def get_diff_array( self, SpDic, CtDic, alter_height = True, alter_CSP = True ):
+    def get_diff_array( self, SpDic, CtDic ):
 
 	import numpy as np
 	ct_features = CtDic['auto_features'] # first column is residue number
@@ -140,10 +149,9 @@ class ProbEst( object ):
 	leg_all = np.hstack( [ legsp, legct ] )
 	
 
-	if alter_height:
-	    # remove height change and avg height and replace with ratio
-	    Fsp = np.hstack( [ Fsp[:,:-2].reshape((Fsp.shape[0], Fsp.shape[1]-2)), Fsp[:, -2].reshape((Fsp.shape[0], 1)) / Fsp[:,-1].reshape((Fsp.shape[0],1)) ] )
-	    Fct = np.hstack( [ Fct[:,:-2].reshape((Fct.shape[0], Fct.shape[1]-2)), Fct[:, -2].reshape((Fct.shape[0], 1)) / Fct[:,-1].reshape((Fct.shape[0],1)) ] )
+	# retain raw height change and also append matrix with a ratio of ( height /  avg height )
+	Fsp = np.hstack( [ Fsp[:,:-1].reshape((Fsp.shape[0], Fsp.shape[1]-1)), Fsp[:, -2].reshape((Fsp.shape[0], 1)) / Fsp[:,-1].reshape((Fsp.shape[0],1)) ] )
+	Fct = np.hstack( [ Fct[:,:-1].reshape((Fct.shape[0], Fct.shape[1]-1)), Fct[:, -2].reshape((Fct.shape[0], 1)) / Fct[:,-1].reshape((Fct.shape[0],1)) ] )
 	    #Fct = np.hstack( [ Fct[:,:-2], Fct[:, -2] / Fct[:,-1] ] )
 
 	    
@@ -153,11 +161,9 @@ class ProbEst( object ):
         #        np.shape( SpDic['picked_features'] )[1] ) )
 	Xraw = Fct - Fsp # first column is residue number
 
-	if alter_CSP:
-	    # extract weighted CSP
-	    #Xdeldel = np.reshape( np.sum( np.abs( ( Xraw[:, :2] ) * self.scaling ), axis=1 ), (Xraw.shape[0], 1) )
-	    Xdeldel = np.reshape( np.sum((( Xraw[:, :2] * self.scaling )**2), axis = 1)**0.5, (Xraw.shape[0], 1) )
-	    Xraw = np.hstack( [ Xdeldel, Xraw[:, 2:]] ) 
+	# extract weighted CSP
+	Xdeldel = np.reshape( np.sum((( Xraw[:, :2] * self.scaling )**2), axis = 1)**0.5, (Xraw.shape[0], 1) )
+	Xraw = np.hstack( [ Xdeldel, Xraw ] ) 
 
 	### create legend vectors and then combine into legend matrix
 	cresvec = np.reshape( np.tile( ct_features[:,0].T, np.shape( SpDic['picked_features'])[0] ).T, \
@@ -194,7 +200,7 @@ class ProbEst( object ):
 	Ynew = np.array( Yraw, dtype = int )
 	print 'Xraw', np.shape(Xraw), 'Ynew', np.shape(Ynew)
 	R_matrix = np.hstack( (Ynew, Xraw) )
-	return (Xraw, Ynew, leg_all, R_matrix)
+	return (Xraw, Ynew, leg_all, R_matrix, Fct, Fsp)
 
 
     def alter_Xy_standard(self):
@@ -234,7 +240,7 @@ class PredMetrics( object ):
 	self.trueneg = predfalseind.shape[0] - self.falseneg 
 	self.falsepos = len( np.setdiff1d( predind, trainind ) )
 	self.truepos = predind.shape[0] - self.falsepos
-	print self.truepos, self.falsepos, self.trueneg, self.falseneg
+	#print self.truepos, self.falsepos, self.trueneg, self.falseneg
 	self.precision = self.truepos / ( self.truepos + self.falsepos )
 	self.recall = self.truepos / ( self.truepos + self.falseneg )
 	self.accuracy = (y_train == y_pred).mean()

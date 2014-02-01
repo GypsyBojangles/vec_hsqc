@@ -15,7 +15,7 @@ class SpectrumPick( object ):
     """
     def __init__(self, spectrum, control_spectrum, protein, **kwargs):
 
-	"""Note that 'msep parameter controls the minimum peak separation in datapoints for each dimension
+	"""Note that 'msep' parameter controls the minimum peak separation in datapoints for each dimension
 
 	"""
 
