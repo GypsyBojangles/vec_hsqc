@@ -24,5 +24,17 @@ a1.classes = np.array([ 0.,  1.])
 
 a1.binary_predict( X )
 
+
+print 'scores min =', np.min( a1.scores)
+
+print 'scores max =', np.max( a1.scores)
+ 
+#np.savetxt( os.path.join( curdir, 'scores.npy' ), a1.scores )
+
+
+
+
 a1._standard_measures_binary( y, a1.y_pred, verbose=True )
+
+print '\n\nNonregularized cost function =', a1._cost_function_nonreg( y, a1.scores_logistic ), '\n\n'
 

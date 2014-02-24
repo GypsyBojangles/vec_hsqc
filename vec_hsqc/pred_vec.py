@@ -257,10 +257,15 @@ class PredMetrics( object ):
 	    print 'accuracy =', self.accuracy, '\n'
 	    print 'F1score =', self.F1score, '\n'
 
+    def _cost_function_nonreg( self, y, scores ):
+
+	return np.sum( ( scores - y )**2 ) / ( 2 * y.shape[0] )
+
+
 
 class PredLog( PredMetrics ):
 
-    def __init__(self, X=None, y=None, C = 1e5, theta=None, bias=0., classes=np.array([0.,1.]), options = {'full_output': True} ):
+    def __init__(self, X=None, y=None, C = 1e5, theta=None, bias=0.0, classes=np.array([0.,1.]), cutoff = 0.5, options = {'full_output': True} ):
 	"""Accepts the following parameters:
 		feature matrix 'X', 
 		[classification vector 'y']
@@ -268,7 +273,7 @@ class PredLog( PredMetrics ):
 		[parameters vector 'theta']
 		[bias scalar [or vector] 'bias']
 		[vector with classification ids 'classes']
-		
+		[float in range (0.0,1.0) 'cutoff'; threshold above which positives are assigned for logistic function]
 
 
 	"""
@@ -298,6 +303,7 @@ class PredLog( PredMetrics ):
 
 	self.classes = classes	
 	self.bias = bias
+	self.cutoff = cutoff
 
 
 	#self.lmd = lmd
@@ -347,18 +353,29 @@ class PredLog( PredMetrics ):
 	y = m-length vector of predictions
     
 	Based upon functions found in class 'LinearClassifierMixin'
-	within sklearn module '/usr/local/lib/python2.7/dist-packages/sklearn/linear_model/base.py'
+	within sklearn version 0.13.1 module '/usr/local/lib/python2.7/dist-packages/sklearn/linear_model/base.py'
 
         """
 
         scores = safe_sparse_dot( X, self.theta.T) + self.bias
         if scores.shape[1] == 1:
-	    scores = scores.ravel()
-        indices = (scores > 0).astype(np.int)
+	    self.scores = scores.ravel()
+        indices = (self.scores > 0).astype(np.int)
+
+	self.scores_logistic = 1.0 / (1 + np.e**(-self.scores))
+	indices_logistic = ( self.scores_logistic > self.cutoff ).astype(np.int)
+
         y_pred = self.classes[ indices ]
+	y_pred_logistic = self.classes[ indices_logistic ]
+
 	if len(y_pred.shape) == 2 and y_pred.shape[0] == 1:
 	    y_pred = y_pred.T.ravel()
+	if len(y_pred_logistic.shape) == 2 and y_pred_logistic.shape[0] == 1:
+	    y_pred_logistic = y_pred_logistic.T.ravel()
+
 	self.y_pred = y_pred.ravel()
+	self.y_pred_logistic = y_pred_logistic.ravel()
+
 
     def sigmoid(self, z):
 
