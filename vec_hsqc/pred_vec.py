@@ -311,17 +311,11 @@ class PredLog( PredMetrics ):
 
     def fscale( self ):
 
-	import numpy as np
-	from numpy import c_
-	X = np.array( self.X[:,1:], dtype = 'float' ) # indexing removes bias term
-	print np.min( X, axis = 0 )
-	print np.max( X, axis = 0 )
-	mins = np.reshape( np.tile( np.min( X, axis = 0 ), X.shape[0] ), X.shape )
-	maxs = np.reshape( np.tile( np.max( X, axis = 0 ), X.shape[0] ), X.shape )
-	Xsc = ( X - mins ) / ( maxs - mins )
-	#now replace bias term
-	Xsc = np.mat(c_[ np.hstack( [np.reshape( np.ones( Xsc.shape[0] ), ( Xsc.shape[0], 1 ) ), Xsc ] ) ] )	
-	self.X = Xsc	
+	means = np.mean( self.X, axis = 0)
+	stds = np.std( self.X, axis = 0)
+	valid = np.nonzero( stds > 0.0 )[0]
+	self.X = ( self.X[ :, valid ] - means[valid] ) / stds[valid]
+	 
 	
 
     def fit( self ):

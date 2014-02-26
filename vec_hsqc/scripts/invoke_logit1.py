@@ -9,8 +9,8 @@ curdir = os.path.dirname( os.path.abspath( __file__ ) )
 #X = np.zeros( (500,5) )
 #y = np.zeros( 500 )
 
-X = np.loadtxt( os.path.join( curdir, 'pred_eg_01_X' ) ) 
-y = np.loadtxt( os.path.join( curdir, 'pred_eg_01_Y' ) )
+X = np.loadtxt( os.path.join( curdir, '140225_composite_X.npy' ) ) 
+y = np.loadtxt( os.path.join( curdir,  ) )
 
 a1 = pred_vec.PredLog( X, y=y, C=1e5)
 
