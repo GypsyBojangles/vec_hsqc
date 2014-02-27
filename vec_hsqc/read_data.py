@@ -22,7 +22,7 @@ class SpectrumPick( object ):
 	self.spectrum = spectrum
 	self.control_spectrum = control_spectrum
 	self.protein = protein
-	default_dict = {'msep' : (10,10), 'scaling' : [0.15, 1.0], 'table' : False, 'cluster' : False, 'threshold' : False, 'spectrum_type' : 'Sparky', 'peaklist_type' : 'Sparky' }
+	default_dict = {'msep' : (2,5), 'scaling' : [0.15, 1.0], 'table' : False, 'cluster' : False, 'threshold' : False, 'spectrum_type' : 'Sparky', 'peaklist_type' : 'Sparky' }
         for (kw, v) in default_dict.iteritems():
             setattr(self, kw, v)
         for (kw, v) in kwargs.iteritems():
@@ -40,7 +40,7 @@ class SpectrumPick( object ):
 	"""
 
 	locations, lws, heights = ng.analysis.peakpick.pick(self.data, self.pick_threshold,
-                msep = self.msep, table = self.table, cluster = self.cluster )
+                msep = self.msep, algorithm='thres', table = self.table, cluster = self.cluster )
         # note that tuple 'msep' specifies array index spearations, not ppm differences
 
         lwhz = [ [ b[0] * self.pt_2_Hz0, b[1] * self.pt_2_Hz1 ] for b in lws ]
@@ -80,8 +80,9 @@ class SpectrumPick( object ):
 	# get spectral parameters in a format we can use
         udic = ng.sparky.guess_udic( self.dic, self.data )
 	x, y = np.shape( self.data )
-        self.avgheight = sum( sum ( abs( self.data ) ) ) / ( x * y ) #NOTE  abs included so that folded and unfolded spectra treated identically - is this valid??? 
-	# The below sets up threshold parameter for subsequent peak pickpcking
+	self.avgheight = np.mean( np.abs(self.data) )
+        #self.avgheight = sum( sum ( abs( self.data ) ) ) / ( x * y ) #NOTE  abs included so that folded and unfolded spectra treated identically - is this valid??? 
+	# The below sets up threshold parameter for subsequent peak picking
 	pick_threshold = self.avgheight
         if self.threshold:
             pick_threshold = self.threshold
@@ -125,7 +126,7 @@ class ImportNmrData( object ):
         #self.control_peaklist = control_peaklist
         #self.protein = protein
         #self.db = db
-        default_dict = { 'import_type' : 'Training', 'msep' : (10,10), 'scaling' : [0.15, 1.0], 'table' : False, 'cluster' : False, 'threshold' : False, 'spectrum_type' : 'Sparky', 'peaklist_type' : 'Sparky', 'dist_cutoff' : 0.02, 'db_write' : True }
+        default_dict = { 'import_type' : 'Training', 'msep' : (2,5), 'scaling' : [0.15, 1.0], 'table' : False, 'cluster' : False, 'threshold' : False, 'spectrum_type' : 'Sparky', 'peaklist_type' : 'Sparky', 'dist_cutoff' : 0.02, 'db_write' : True }
         for (kw, v) in default_dict.iteritems():
             setattr(self, kw, v)
         for (kw, v) in kwargs.iteritems():
@@ -216,7 +217,7 @@ class ImportNmrData( object ):
         self.protein = protein
 
         spectra, peaklists = self.extract_spectra_lists( filelist )
-	control = SpectrumPick( self.control_spectrum, self.control_spectrum, self.protein, scaling = self.scaling )
+	control = SpectrumPick( self.control_spectrum, self.control_spectrum, self.protein, scaling = self.scaling, msep = self.msep, threshold = self.threshold )
 	possible_peaks = control.possible_peaks
         found_peaks = control.found_peaks
 	cont_list = self.import_peaklist( self.control_peaklist, self.peaklist_type )
@@ -246,7 +247,7 @@ class ImportNmrData( object ):
 		'full_info' : full_info }
 	for sp in spectra:
             if self.check_list( sp, peaklists ):
-		SPobj = SpectrumPick( sp, self.control_spectrum, self.protein, scaling = self.scaling )
+		SPobj = SpectrumPick( sp, self.control_spectrum, self.protein, scaling = self.scaling, msep = self.msep, threshold = self.threshold )
                 ass_list = self.import_peaklist( self.find_partner_list( sp, peaklists ) )  ###
 	        #below is simply an n by 5 matrix of [ ppmN, ppmH, lwN, lwH, height ] for each peak
 	        avgheightvec = np.ones( (np.shape(SPobj.picked_peaks)[0], 1) )* SPobj.avgheight
@@ -309,7 +310,39 @@ class ImportNmrData( object ):
 	    return name + '.list' 
 
 	 
+    def return_closest_indices( self, aspk, pk, scaling, cutoff ):
+	"""
+	(numpy float array(n1 X 2)), (numpy float array(n2 X 2)), (numpy array (1 X 2)), (float) -> (list of floats(n3 X 2))
 
+	n1, n2, n3 can vary and are not interdependent 
+
+	Nomenclature is:
+		aspk : assigned peaks
+		pk : all picked peaks 
+
+	""" 
+	naspk = np.shape( aspk )[0]
+	npk = np.shape( pk )[0]
+
+	# make an n1 X n2 X 2 array where each row corresponds to a specific assigned peak, repeated n2 times
+	asscomp = np.reshape( np.tile( aspk, npk ), ( naspk, npk, 2 ) )
+
+	# make an n1 X n2 X 2 array where each column corresponds to a specific picked peak, repeated n1 times
+	peakcomp = np.reshape( np.tile( pk.T, naspk ).T, ( naspk, npk, 2 ) )
+	# reduce to a "distance" metric by taking difference of above arrays and then applying weighting and the euclidean distance
+	raw_distances = asscomp - peakcomp
+	distances = np.sum((( raw_distances * scaling )**2), axis = 2)**0.5
+	# find closest picked index to assigned ( axis = 1 corresponds to "by row" )
+	clo2ass = np.argmin( distances, axis=1 )
+	# those  which are unique correspond to the 
+	unique_clo2picked = (np.bincount( clo2ass ) == 1).astype( np.int )
+	# find closest assigned index to picked ( axis = 0 corresponds to "by column" )
+	clo2picked = np.argmin( distances, axis=0 )
+	unique_clo2picked = np.nonzero((np.bincount( clo2picked ) == 1))[0]
+	# find assigned peak indices that correspond to closest in both dimensions
+	# for now i use a list comprehension but there is probably a neater way
+	cloindices = [ [ b, clo2ass[b] ] for b in range( len( clo2ass ) ) if clo2picked[ clo2ass[b] ] == b and distances[ b, clo2ass[b] ] < cutoff ] # required 
+	return cloindices	
 
 
     def find_nearest_assign( self, ass_list, SP_obj ):
@@ -336,115 +369,53 @@ class ImportNmrData( object ):
 	repos_dict = {}
 	answers = []
 
+	cloindices = self.return_closest_indices( asspeaks, peaks, self.scaling, self.dist_cutoff ) # required	
+
+
 	# create matrices for peak distance comparisons
-	asscomp = np.reshape( np.tile( asspeaks, n_peaks ), ( n_asspeaks, n_peaks, 2 ) )
+	#asscomp = np.reshape( np.tile( asspeaks, n_peaks ), ( n_asspeaks, n_peaks, 2 ) ) # required
 	#peakcomp = np.transpose( np.reshape( np.tile( peaks, n_asspeaks ), ( n_peaks, n_asspeaks, 2 ) ), (1,0,2) )   
-	peakcomp = np.reshape( np.tile( peaks.T, n_asspeaks ).T, ( n_asspeaks, n_peaks, 2 ) )   
+	#peakcomp = np.reshape( np.tile( peaks.T, n_asspeaks ).T, ( n_asspeaks, n_peaks, 2 ) ) #required  
 	# calculate distance matrix
-	raw_distances = asscomp - peakcomp
+	#raw_distances = asscomp - peakcomp # required
 	#distances = np.sum( np.abs( ( raw_distances ) * self.scaling ), axis=2 )
-	distances = np.sum((( raw_distances * self.scaling )**2), axis = 2)**0.5
+	#distances = np.sum((( raw_distances * self.scaling )**2), axis = 2)**0.5 # required
 	# find closest peaks to assigned
-	clo2ass = np.argmin( distances, axis=1 )
+	#clo2ass = np.argmin( distances, axis=1 ) # required
 	# find closest assigned to picked
-	clo2picked = np.argmin( distances, axis=0 )
+	#clo2picked = np.argmin( distances, axis=0 ) # required
 	# find assigned peak indices that correspond to closest in both dimensions
 	# for now i use a list comprehension but there is probably a neater way
-	cloindices = [ [ b, clo2ass[b] ] for b in range( len( clo2ass ) ) if clo2picked[ clo2ass[b] ] == b and distances[ b, clo2ass[b] ] < self.dist_cutoff ] 
+	#cloindices = [ [ b, clo2ass[b] ] for b in range( len( clo2ass ) ) if clo2picked[ clo2ass[b] ] == b and distances[ b, clo2ass[b] ] < self.dist_cutoff ] # required 
 	# extract assignable resonances and the correponding picked peaks
 	# first the quick way ? (if it works)
-	auto_peak_resnum = assigned[ np.ix_( [ b[0] for b in cloindices ] ) ][:, 0]	
-	auto_peak_shifts = peaks[ np.ix_( [ b[1] for b in cloindices ] ) ]
-	auto_ass = np.hstack( [ auto_peak_resnum.reshape( auto_peak_resnum.shape[0], 1 ), auto_peak_shifts ] )
+	auto_peak_resnum = assigned[ np.ix_( [ b[0] for b in cloindices ] ) ][:, 0] # required	
+	auto_peak_shifts = peaks[ np.ix_( [ b[1] for b in cloindices ] ) ] # required
+	auto_ass = np.hstack( [ auto_peak_resnum.reshape( auto_peak_resnum.shape[0], 1 ), auto_peak_shifts ] ) # required
 	#auto_ass = assigned[ np.ix_( [ b[0] for b in cloindices ] ) ]	
-	auto_locs = np.array( self.get_peak_indices( SP_obj, auto_ass ) ) # peaklist as data array indices	
+	auto_locs = np.array( self.get_peak_indices( SP_obj, auto_ass ) ) # required peaklist as data array indices	
 	# then the slow way??
-	assigned = np.array( [ assigned[ b[0] ][0] for b in cloindices ] )
+	#assigned = np.array( [ assigned[ b[0] ][0] for b in cloindices ] )
 	# below 'answers' represents 
-	answers = np.array( [ b[1] for b in cloindices ] )
+	answers = np.array( [ b[1] for b in cloindices ] ) # required
 	#print answers
-	assignments = np.array( [ [ assigned[b], answers[b] ] for b in range( len( assigned ) ) ] )
-	peaks_assigned = peaks[ np.ix_( answers ) ]
+	#assignments = np.array( [ [ assigned[b], answers[b] ] for b in range( len( assigned ) ) ] )
+	#peaks_assigned = peaks[ np.ix_( answers ) ]
 	#create an array which contains index, assignment and peak info
-        full_info = np.hstack( [ cloindices, auto_ass ] ) # (n X 5) matrix
+        full_info = np.hstack( [ cloindices, auto_ass ] ) # required (n X 5) matrix
 	# extract distances and displacements
-	dists_assigned = np.array( [ distances[b[0]][b[1]] for b in cloindices ] )
-	rawdists_assigned = np.array( [ raw_distances[b[0]][b[1]] for b in cloindices ] )
-	lws = np.array( lwhz[np.ix_( answers )] )
-	lw_H_assigned = np.array( lwhz[:,1][np.ix_( answers ) ]) 
-	lw_N_assigned = np.array( lwhz[:,0][np.ix_( answers ) ])
-	rlw_assigned = lw_N_assigned / lw_H_assigned
-	h_assigned = heights[ np.ix_( answers ) ]
-	rh_assigned = height_ratios[ np.ix_( answers ) ]
-	#print np.shape(auto_ass), np.shape( lws ), np.shape( h_assigned ) 
-	avgheightvec = np.ones( (np.shape( auto_ass )[0], 1) ) * SP_obj.avgheight
-	auto_features = np.hstack( [ auto_ass, lws, np.reshape( h_assigned, ( np.shape( h_assigned )[0], 1 ) ), avgheightvec ] )
-        n_assigned_peaks = len( cloindices )
-	#setattr( SP_obj, 'assigned_peaks', assigned_peaks )
+	#dists_assigned = np.array( [ distances[b[0]][b[1]] for b in cloindices ] )
+	#rawdists_assigned = np.array( [ raw_distances[b[0]][b[1]] for b in cloindices ] )
+	lws = np.array( lwhz[np.ix_( answers )] ) # required
+	#lw_H_assigned = np.array( lwhz[:,1][np.ix_( answers ) ]) 
+	#lw_N_assigned = np.array( lwhz[:,0][np.ix_( answers ) ])
+	#rlw_assigned = lw_N_assigned / lw_H_assigned
+	h_assigned = heights[ np.ix_( answers ) ] # required
+	#rh_assigned = height_ratios[ np.ix_( answers ) ]
+	avgheightvec = np.ones( (np.shape( auto_ass )[0], 1) ) * SP_obj.avgheight # required
+	auto_features = np.hstack( [ auto_ass, lws, np.reshape( h_assigned, ( np.shape( h_assigned )[0], 1 ) ), avgheightvec ] ) # required
+        n_assigned_peaks = len( cloindices ) # required
 
 
         return ( auto_features, auto_ass, n_assigned_peaks, answers, manual_locs, auto_locs, full_info )
 	
-    def dict2db_simple( self ):
-	#NOTE: This is now out of action, to be refactored into later prediction class
-        """Create / add to simple sqlite3 db.
-	Very simple db structure will not scale well.
-	At present I'm undecided as to whether replacement should be allowed.  Need to decide.
-	For now, no replacement, however duplication disallowed.
-	Database essentially requires manual curation.
-	Will fix this once a db engine has been decided upon.
-        """
-        conn = sq3.connect( self.db )
-        c = conn.cursor()
-        tables = [ str(b[0]) for b in c.execute( 'SELECT name from sqlite_master \
-            where type = \'table\'' ).fetchall() ]
-        timestamp = time.asctime()
-        if 'Data' not in tables:
-            c.execute('CREATE TABLE Data (controlID text, expID text, pID text, resID real, Nshift real, Hshift real, lwH real, lwN real, height real, average_height real)')
-	if 'Spectra' not in tables:
-	    c.execute('CREATE TABLE Spectra (controlID text, expID text, protein text, timestamp text, poss_peaks real, found_peaks real, assigned_peaks real)' )
-        for k1 in self.full_data_dict.keys():            
-            sd = self.full_data_dict[k1]
-	    feat = sd['auto_features']
-
-	    #c.execute('INSERT INTO Spectra SELECT \'' + 
-	    #sd['control_spectrum_name'] + '\', \'' + k1 + '\', \'' + self.protein + '\', \'' + timestamp + '\', ' + 
-	    #str( sd['possible_peaks'] ) + ', ' + str( sd['found_peaks'] ) + ', ' + str( sd['assigned_peaks'] )
-	    #+ ' WHERE ( SELECT NOT EXISTS ( SELECT * FROM Spectra WHERE controlID = \'' + sd['control_spectrum_name'] 
-	    #+ '\' and expID = \'' +  k1 + '\' ) )' )
-	    for i in range( np.shape( feat )[0] ):
-                c.execute('INSERT INTO Data SELECT \'' +
-                sd['control_spectrum_name'] + '\' , \'' + k1 + '\' ,\'' + self.protein + '\' ,' 
-		+ str( feat[i][0]) + ', ' + str( feat[i][1] ) + ', ' + str( feat[i][2] ) + ', '
-		+ str( feat[i][4] ) + ', ' + str( feat[i][3] ) + ', ' + str( feat[i][5] ) + ', '
-		+ str(sd['avgheight']) + ' WHERE ( SELECT NOT EXISTS ( SELECT * FROM Spectra WHERE controlID = \'' + sd['control_spectrum_name'] 
-	    	+ '\' and expID = \'' +  k1 + '\' ) )' )
-            conn.commit()
-
-	    c.execute('INSERT INTO Spectra SELECT \'' + 
-	    sd['control_spectrum_name'] + '\', \'' + k1 + '\', \'' + self.protein + '\', \'' + timestamp + '\', ' + 
-	    str( sd['possible_peaks'] ) + ', ' + str( sd['found_peaks'] ) + ', ' + str( sd['assigned_peaks'] )
-	    + ' WHERE ( SELECT NOT EXISTS ( SELECT * FROM Spectra WHERE controlID = \'' + sd['control_spectrum_name'] 
-	    + '\' and expID = \'' +  k1 + '\' ) )' )
-	    conn.commit()
-
-        if 'Stats' not in tables:
-            c.execute('CREATE TABLE Stats (controlID text, protein text, timestamp text)' )
-        c.execute('INSERT INTO Stats VALUES ( ?, ?, ? )', ( 
-	    opath.split( self.control_spectrum )[-1], self.protein, timestamp ) )
-        conn.commit()
-
-
-
-
-    def write_db( self ):
-	"""Enables all tables in db (but NOT views)
-	to be written as csvs using function from db_methods module
-	"""
-        conn = sq3.connect( self.db )
-        c = conn.cursor()
-        tables = [ str(b[0]) for b in c.execute( 'SELECT name from sqlite_master \
-            where type = \'table\'' ).fetchall() ][:]
-        conn.close()
-        for table in tables:
-            dbm.write_db_table( '.', self.db, table )
