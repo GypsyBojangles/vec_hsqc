@@ -241,10 +241,19 @@ class PredMetrics( object ):
 	self.falsepos = len( np.setdiff1d( predind, trainind ) )
 	self.truepos = predind.shape[0] - self.falsepos
 	#print self.truepos, self.falsepos, self.trueneg, self.falseneg
-	self.precision = self.truepos / ( self.truepos + self.falsepos )
-	self.recall = self.truepos / ( self.truepos + self.falseneg )
+	try:
+	    self.precision = self.truepos / ( self.truepos + self.falsepos )
+	except:
+	    self.precision = 0
+	try:
+	    self.recall = self.truepos / ( self.truepos + self.falseneg )
+	except:
+	    self.recall = 0
 	self.accuracy = (y_train == y_pred).mean()
-	self.F1score = 2 * self.precision * self.recall / ( self.precision + self.recall ) 
+	try:
+	    self.F1score = 2 * self.precision * self.recall / ( self.precision + self.recall ) 
+	except:
+	    self.F1score = 0
 
 	if verbose:
 

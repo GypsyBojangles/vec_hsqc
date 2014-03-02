@@ -1,7 +1,9 @@
 *.egg-info/
 archive/
 old_scripts/
+env/
 *A
+*.log
 *.png
 build/
 dist/
