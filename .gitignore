@@ -1,4 +1,5 @@
 *.egg-info/
+paper/
 archive/
 old_scripts/
 env/
