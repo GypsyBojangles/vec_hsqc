@@ -35,13 +35,13 @@ a3.get_data( filelist3, os.path.join(datadir3, '120328_apo.ucsf'), os.path.join(
 
 
 
-with open(os.path.join(curdir,  '120319_training.pickle'), 'w') as f:
+with open(os.path.join(curdir,  '120319_training_new.pickle'), 'w') as f:
     pickle.dump( a1, f )
 
-with open(os.path.join(curdir,  '120323_training.pickle'), 'w') as f:
+with open(os.path.join(curdir,  '120323_training_new.pickle'), 'w') as f:
     pickle.dump( a2, f )
 
-with open(os.path.join(curdir,  '120328_training.pickle'), 'w') as f:
+with open(os.path.join(curdir,  '120328_training_new.pickle'), 'w') as f:
     pickle.dump( a3, f )
 
 

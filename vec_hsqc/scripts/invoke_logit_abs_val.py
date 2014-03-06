@@ -12,11 +12,8 @@ curdir = os.path.dirname( os.path.abspath( __file__ ) )
 X_train = np.loadtxt( os.path.join( curdir, 'train_X.npy'  ) ) 
 y_train = np.loadtxt( os.path.join( curdir, 'train_y.npy'  ) )
 
-
-X_CV = np.loadtxt( os.path.join( curdir, 'CV_X.npy'  ) )
+X_CV = np.loadtxt( os.path.join( curdir, 'CV_X.npy'  ) ) 
 y_CV = np.loadtxt( os.path.join( curdir, 'CV_y.npy'  ) )
-
-
 
 
 
@@ -76,13 +73,15 @@ Xcv_abr = abridge_features( X_CV )
 X_train = X_train[:,1:]
 X_CV = X_CV[:, 1:]
 
+
+
 if __name__ == '__main__':
-    for i in range(1,3):
-	for Cval in ( 1e6, 1e8, 1e10, 1e12, 1e15 ):  
+    for i in range(1,4):
+	for Cval in ( 1e15, 1e12, 1e10, 1e8, 1e6, 1e5, 1e3, 1e2, 5e1, 1.25e1, 2.5e0, 1e0, 2.5e-1, 5e-1, 1e-2, 1e-3 ):  
             #compare_train_CV_logistic( X_train[:,1:], y_train, X_CV[:,1:], y_CV, i, 'Unscaled full feature set, degree = ' + str(i) + ', C = ' + str(Cval), C=Cval, scale=False )
             #compare_train_CV_logistic( abridge_features(X_train), y_train, abridge_features(X_CV), y_CV, i, 'Unscaled abridged feature set, degree = ' + str(i) + ', C = ' + str(Cval), C=Cval, scale=False )
-            compare_train_CV_logistic( X_train, y_train, X_CV, y_CV, i, 'Scaled full feature set, degree = ' + str(i) + ', C = ' + str(Cval), C=Cval, scale=True )
-            compare_train_CV_logistic( Xtr_abr, y_train, Xcv_abr, y_CV, i, 'Scaled abridged feature set, degree = ' + str(i) + ',  C = ' + str(Cval), C=Cval, scale=True )
+            compare_train_CV_logistic( X_train[:,1:], y_train, X_CV[:,1:], y_CV, i, 'Scaled full feature set, degree = ' + str(i) + ', C = ' + str(Cval), C=Cval, scale=True )
+            compare_train_CV_logistic( abridge_features(X_train), y_train, abridge_features(X_CV), y_CV, i, 'Scaled abridged feature set, degree = ' + str(i) + ',  C = ' + str(Cval), C=Cval, scale=True )
 
 
 

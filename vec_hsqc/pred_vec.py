@@ -61,7 +61,8 @@ class ProbEst( object ):
 	Each row represents one such query vs control difference and contains the following
 	entries: 
 	<weighted ave CSP>, <delta 15N ppm>, <delta 1H ppm>, <delta linewidth 15N>, 
-	<delta linewidth 1H>, <delta height>, <delta(height / avg height) >.  
+	<delta linewidth 1H>, <delta height>, <delta(height / avg height) >,
+	<delta( (height - avg height ) / (stdev of height ) >.  
 	Rows are in repeating blocks of peaks for
 	each query spectrum, with each successive block iterating through the possible
 	control spectrum options.
@@ -80,9 +81,9 @@ class ProbEst( object ):
 	#initialise X, Y, etc
 	print type( self.ImpObj[ self.contname ]['picked_features'] )
 	
-	Xtot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] + 1 ] )
-	Fct_tot = Fsp_tot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] ] )
-	Rmattot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] + 2 ] )
+	Xtot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] + 2 ] )
+	Fct_tot = Fsp_tot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] + 1 ] )
+	Rmattot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] + 3 ] )
 	Ytot = np.zeros((1,1))
 	legmat = np.zeros([1,6])
 	###
@@ -150,9 +151,17 @@ class ProbEst( object ):
 	
 
 	# retain raw height change and also append matrix with a ratio of ( height /  avg height )
-	Fsp = np.hstack( [ Fsp[:,:-1].reshape((Fsp.shape[0], Fsp.shape[1]-1)), Fsp[:, -2].reshape((Fsp.shape[0], 1)) / Fsp[:,-1].reshape((Fsp.shape[0],1)) ] )
-	Fct = np.hstack( [ Fct[:,:-1].reshape((Fct.shape[0], Fct.shape[1]-1)), Fct[:, -2].reshape((Fct.shape[0], 1)) / Fct[:,-1].reshape((Fct.shape[0],1)) ] )
-	    #Fct = np.hstack( [ Fct[:,:-2], Fct[:, -2] / Fct[:,-1] ] )
+	#Fsp = np.hstack( [ Fsp[:,:-1].reshape((Fsp.shape[0], Fsp.shape[1]-1)), Fsp[:, -2].reshape((Fsp.shape[0], 1)) / Fsp[:,-1].reshape((Fsp.shape[0],1)) ] )
+	#Fct = np.hstack( [ Fct[:,:-1].reshape((Fct.shape[0], Fct.shape[1]-1)), Fct[:, -2].reshape((Fct.shape[0], 1)) / Fct[:,-1].reshape((Fct.shape[0],1)) ] )
+	
+	# The new way:
+	Fsp = np.hstack( [ Fsp[:,:-1].reshape((Fsp.shape[0], Fsp.shape[1]-1)), Fsp[:, -2].reshape((Fsp.shape[0], 1)) / SpDic['avgheight'], ( ( Fsp[:, -2].reshape((Fsp.shape[0], 1)) - SpDic['avgheight'] ) / SpDic['heightstd'] )  ] )
+	Fct = np.hstack( [ Fct[:,:-1].reshape((Fct.shape[0], Fct.shape[1]-1)), Fct[:, -2].reshape((Fct.shape[0], 1)) / CtDic['avgheight'], ( ( Fct[:, -2].reshape((Fct.shape[0], 1)) - CtDic['avgheight'] ) / CtDic['heightstd'] )  ] )
+
+ 
+
+
+	   #Fct = np.hstack( [ Fct[:,:-2], Fct[:, -2] / Fct[:,-1] ] )
 
 	    
 

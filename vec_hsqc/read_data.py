@@ -80,10 +80,13 @@ class SpectrumPick( object ):
 	# get spectral parameters in a format we can use
         udic = ng.sparky.guess_udic( self.dic, self.data )
 	x, y = np.shape( self.data )
-	self.avgheight = np.mean( np.abs(self.data) )
+	self.avgheight = np.mean(self.data)
+	self.thresh_height = np.mean(np.abs(self.data))
+
+	self.heightstd = np.std( self.data )
         #self.avgheight = sum( sum ( abs( self.data ) ) ) / ( x * y ) #NOTE  abs included so that folded and unfolded spectra treated identically - is this valid??? 
 	# The below sets up threshold parameter for subsequent peak picking
-	pick_threshold = self.avgheight
+	pick_threshold = self.thresh_height
         if self.threshold:
             pick_threshold = self.threshold
 	self.pick_threshold = pick_threshold
@@ -232,6 +235,7 @@ class ImportNmrData( object ):
 		###this section combined into 'picked_features' - not used directly in prediction - bound for future storage
 		'peaks' : control.picked_peaks, 'lwhz' : control.picked_lws,
         	'heights' : control.picked_heights, 'avgheight' : control.avgheight,
+		'heightstd' : control.heightstd,
 		###
         	'spectrum_name' : opath.split( control.spectrum )[-1],
         	'control_spectrum_name' : opath.split( control.control_spectrum )[-1],
@@ -263,6 +267,7 @@ class ImportNmrData( object ):
                 'lwhz' : SPobj.picked_lws,
                 'heights' : SPobj.picked_heights,
                 'avgheight' : SPobj.avgheight,
+		'heightstd' : SPobj.heightstd,
                 'spectrum_name' : opath.split( SPobj.spectrum )[-1],
                 'control_spectrum_name' : opath.split( SPobj.control_spectrum )[-1],
 		#'answers' : answers, 
@@ -349,6 +354,13 @@ class ImportNmrData( object ):
 	"""Accepts assigned peaklist plus SpectrumPick object.
 	Returns a feature matrix plus some ancillary info and somewhat useful objects.
 	Some return objects might be pruned in future
+
+	Returned objects include (but are not curently linited to:
+	
+	auto_features is an n X 7  np.ndarray with the folowing columns:
+	< residue number >, <15N chem shift (ppm)>, <1H chem shift (ppm)> <linewidth 15N>, <linewidth 1H>, <height>, <avg height (repeated scalar)>
+
+
 	"""
 	peaks = SP_obj.picked_peaks
 	n_peaks = np.shape( peaks )[0]
@@ -413,6 +425,10 @@ class ImportNmrData( object ):
 	h_assigned = heights[ np.ix_( answers ) ] # required
 	#rh_assigned = height_ratios[ np.ix_( answers ) ]
 	avgheightvec = np.ones( (np.shape( auto_ass )[0], 1) ) * SP_obj.avgheight # required
+
+	# Note that last column of auto_features is repeated scalar - should be deprecated
+	# auto_features is a np.ndarray with the folowing columns:
+	# < residue number >, <linewidth 15N>, <linewidth 1H>, <height>, <avg height (repeated scalar)>
 	auto_features = np.hstack( [ auto_ass, lws, np.reshape( h_assigned, ( np.shape( h_assigned )[0], 1 ) ), avgheightvec ] ) # required
         n_assigned_peaks = len( cloindices ) # required
 
