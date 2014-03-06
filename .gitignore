@@ -12,6 +12,7 @@ prot1_plate1/
 plate1_data/
 first500k_prediction
 *csv*
+*.R
 *.swn
 scaled_x_500k
 training_eg_01
@@ -23,6 +24,7 @@ training_eg_*
 *.pyc
 *.swp
 *.swo
+*.swm
 old*
 *.txt
 X
