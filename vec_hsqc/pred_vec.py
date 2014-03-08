@@ -389,6 +389,65 @@ class PredLog( PredMetrics ):
 	self.y_pred_logistic = y_pred_logistic.ravel()
 
 
+    def clean_ambiguities( self, legmat, scores_raw, y ):
+	"""
+
+
+	"""
+	spectra = np.unique( legmat[:,0] )
+	for spectrum in spectra:
+	    inds = np.nonzero( legmat[:,0] == spectrum )[0]
+	    y_sp = y[ inds ]
+	    lm_sp = legmat[ inds ]
+	    sc_sp = scores_raw[ inds ]
+	    y[ inds ] = self.remove_dualities( lm_sp, sc_sp, y_sp )
+	return y
+
+    def remove_dualities(self, legmat, scores_raw, y ):
+	"""
+	( PredLog, np.chararray, np.array, np.array ) -> np.array
+
+	arguments:
+	
+	PredLog object, 
+
+	- legmat = legend matrix for one non-control spectrum only (must be separated from all others)
+
+	- scores_raw = logistic regression score (ie: self.scores_logistic 
+	corresponding to particular spectrum)
+
+	- y = y-vector (ie: predictions)
+
+	Removes any instances where two non-control peaks are separately assigned to
+	the same control residue, or a case where one non-control peak is simultaneously
+	assigned to two distinct control residues.
+	Both of these scenarios are possible under LR.
+
+	Returns:
+
+	- altered y vector with dualities removed
+
+	"""
+	inds = np.nonzero( y == 1 )[0]
+	continds = legmat[ :, 4][ inds ].astype( int )
+	specinds = legmat[ :, 1][inds].astype( int )
+	duals_cont = np.nonzero( np.bincount( continds ) > 1 )[0]
+	duals_spec = np.nonzero( np.bincount( specinds ) > 1 )[0]
+	for du in duals_cont:
+	    #print 'cont du', du
+	    ind = np.nonzero( legmat[ :, 4 ].astype( int ) == du )[0]
+	    dropind = np.nonzero(scores_raw[ continds == du ] < np.max( scores_raw[ continds == du ] ))[0]
+	    #print 'cont ind', ind, dropind
+	    y[ ind[ dropind ] ] = 0
+	for du in duals_spec:
+	    #print 'spec du', du
+	    ind = np.nonzero( legmat[ :, 1 ].astype(int) == du )[0]
+	    dropind = np.nonzero( scores_raw[ specinds == du ] < np.max( scores_raw[ specinds == du ] ))[0]
+	    #print 'spec ind', ind, dropind
+	    y[ ind[ dropind ] ] = 0
+	return y
+
+
     def sigmoid(self, z):
 
 	#from __future__ import division must occur at beginning of file

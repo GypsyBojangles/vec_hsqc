@@ -128,6 +128,27 @@ y = np.array([ 1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,
 
 y_pred_posindices_expected = np.linspace( 0, 24, 25 )
 
+EG_LEGMAT = np.array([[ 'sp1', '0', '0.0', 'control:1', '0', '3.0' ],
+		      [ 'sp1', '0', '0.0', 'control:1', '1', '4.0' ],
+		      [ 'sp1', '0', '0.0', 'control:1', '2', '5.0' ],
+		      [ 'sp1', '0', '0.0', 'control:1', '3', '5.0' ],
+		      [ 'sp1', '1', '0.0', 'control:1', '4', '5.0' ],
+		      [ 'sp1', '2', '0.0', 'control:1', '4', '5.0' ],
+		      [ 'sp1', '3', '0.0', 'control:1', '2', '5.0' ],
+		      [ 'sp2', '0', '0.0', 'control:1', '1', '4.0' ],
+		      [ 'sp1', '3', '0.0', 'control:1', '8', '5.0' ],
+		      [ 'sp2', '0', '0.0', 'control:1', '2', '5.0' ]
+		
+
+			] )
+
+EG_Y = np.array( [1,1,1,1,1,1,1,1,1,1] )
+
+EG_SCORES_RAW = np.array( [ 1.,2.,3.,4.,5.,6.,0.5,8.,9.,10.] )
+
+EG_FIXED_Y = np.array( [ 0,0,0,1,0,1,0,0,1,1] )
+
+
 #X = np.loadtxt( 'pred_eg_01_X' )
 #y = np.loadtxt( 'pred_eg_01_Y' )
 #y_pred_posindices_expected = np.loadtxt( 'y_pred_posindices.npy' )
@@ -159,3 +180,7 @@ class TestInput( unittest.TestCase ):
 	self.assertTrue( a.y_pred.ndim == 1 )
 	self.assertTrue( (a.y_pred == a.y_pred_logistic).all() )
 
+    def test_clean_ambiguities(self):
+	a = pred_vec.PredLog()
+	trial = a.clean_ambiguities( EG_LEGMAT, EG_SCORES_RAW, EG_Y ) 
+	self.assertTrue( (EG_FIXED_Y == trial).all() )
