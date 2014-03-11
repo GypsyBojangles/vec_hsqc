@@ -69,6 +69,11 @@ class SpectrumPick( object ):
 	self.picked_peaks = np.array( picked_peaks )
 	self.picked_locs = np.array( picked_locs )
 	self.picked_lws = np.array( picked_lws )
+	self.avglwN = np.mean( self.picked_lws[:,0] )
+	self.avglwH = np.mean( self.picked_lws[:,1] )
+	self.sdevlwN = np.std( self.picked_lws[:,0] )
+	self.sdevlwH = np.std( self.picked_lws[:,1] )
+	
 	self.picked_heights = np.array( picked_heights )
 	
 
@@ -236,6 +241,10 @@ class ImportNmrData( object ):
 		'peaks' : control.picked_peaks, 'lwhz' : control.picked_lws,
         	'heights' : control.picked_heights, 'avgheight' : control.avgheight,
 		'heightstd' : control.heightstd,
+		'avglwN' : control.avglwN,
+		'sdevlwN' : control.sdevlwN,
+		'avglwH' : control.avglwH,
+		'sdevlwH' : control.sdevlwH,
 		###
         	'spectrum_name' : opath.split( control.spectrum )[-1],
         	'control_spectrum_name' : opath.split( control.control_spectrum )[-1],
@@ -255,7 +264,7 @@ class ImportNmrData( object ):
                 ass_list = self.import_peaklist( self.find_partner_list( sp, peaklists ) )  ###
 	        #below is simply an n by 5 matrix of [ ppmN, ppmH, lwN, lwH, height ] for each peak
 	        avgheightvec = np.ones( (np.shape(SPobj.picked_peaks)[0], 1) )* SPobj.avgheight
-		picked_features = np.hstack( [ SPobj.picked_peaks, SPobj.picked_lws, np.reshape( SPobj.picked_heights, ( np.shape( SPobj.picked_heights )[0], 1 ) ), avgheightvec ] )
+		picked_features = np.hstack( [ SPobj.picked_peaks, SPobj.picked_lws, np.reshape( SPobj.picked_heights, ( np.shape( SPobj.picked_heights )[0], 1 ) ) ] )
                 #auto_features, auto_ass, sp_assigned_peaks, answers, index_peaks_manual, index_peaks_auto, full_info = self.find_nearest_assign( ass_list, SPobj ) ###
 
                 #possible_peaks += SPobj.possible_peaks
@@ -268,6 +277,10 @@ class ImportNmrData( object ):
                 'heights' : SPobj.picked_heights,
                 'avgheight' : SPobj.avgheight,
 		'heightstd' : SPobj.heightstd,
+		'avglwN' : SPobj.avglwN,
+		'sdevlwN' : SPobj.sdevlwN,
+		'avglwH' : SPobj.avglwH,
+		'sdevlwH' : SPobj.sdevlwH,
                 'spectrum_name' : opath.split( SPobj.spectrum )[-1],
                 'control_spectrum_name' : opath.split( SPobj.control_spectrum )[-1],
 		#'answers' : answers, 
@@ -358,7 +371,7 @@ class ImportNmrData( object ):
 	Returned objects include (but are not curently linited to:
 	
 	auto_features is an n X 7  np.ndarray with the folowing columns:
-	< residue number >, <15N chem shift (ppm)>, <1H chem shift (ppm)> <linewidth 15N>, <linewidth 1H>, <height>, <avg height (repeated scalar)>
+	< residue number >, <15N chem shift (ppm)>, <1H chem shift (ppm)> <linewidth 15N>, <linewidth 1H>, <height>
 
 
 	"""
@@ -429,7 +442,7 @@ class ImportNmrData( object ):
 	# Note that last column of auto_features is repeated scalar - should be deprecated
 	# auto_features is a np.ndarray with the folowing columns:
 	# < residue number >, <linewidth 15N>, <linewidth 1H>, <height>, <avg height (repeated scalar)>
-	auto_features = np.hstack( [ auto_ass, lws, np.reshape( h_assigned, ( np.shape( h_assigned )[0], 1 ) ), avgheightvec ] ) # required
+	auto_features = np.hstack( [ auto_ass, lws, np.reshape( h_assigned, ( np.shape( h_assigned )[0], 1 ) ) ] ) # required
         n_assigned_peaks = len( cloindices ) # required
 
 

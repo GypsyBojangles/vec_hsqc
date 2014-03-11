@@ -18,6 +18,6 @@ setup(name='vec_hsqc',
       license='',
       packages=['vec_hsqc'],
       install_requires=[
-	'nmrglue', 'numpy', 'scipy', 'matplotlib', 'scikit-learn==0.13.1',
+	'nmrglue==0.4', 'numpy==1.6.1', 'scipy', 'matplotlib', 'scikit-learn==0.13.1',
       ],
       zip_safe=False)

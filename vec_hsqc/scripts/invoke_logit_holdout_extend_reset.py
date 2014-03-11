@@ -80,10 +80,22 @@ def compare_train_CV_logistic( Xtr, ytr, Xcv, ycv, degree, description, C=1e5, s
 #Xtr_abr = np.abs( np.hstack( [ X_train[:,1:-2], X_train[:,-1].reshape( X_train.shape[0], 1) ] ) )
 #Xcv_abr = np.abs( np.hstack( [ X_CV[:,1:-2], X_CV[:,-1].reshape( X_CV.shape[0], 1) ] ) )
 
-#X_train = np.abs( np.hstack( [ X_train[:,:-2], X_train[:,-1].reshape( X_train.shape[0], 1) ] ) )
-#X_CV = np.abs( np.hstack( [ X_CV[:,:-2], X_CV[:,-1].reshape( X_CV.shape[0], 1) ] ) )
+X_train = np.abs( np.hstack( [ X_train[:,:-2], X_train[:,-1].reshape( X_train.shape[0], 1) ] ) )
+X_CV = np.abs( np.hstack( [ X_CV[:,:-2], X_CV[:,-1].reshape( X_CV.shape[0], 1) ] ) )
 
 if __name__ == '__main__':
+    for i in range(1,3):
+    	Xtr_abr = create_array_poly( Xtr_abr, i )
+    	Xcv_abr = create_array_poly( Xcv_abr, i )
+
+    	a1 = pred_vec.PredLog( X=Xtr_abr )
+    	a1.fscale()
+	
+    	a2 = pred_vec.PredLog( X=Xcv_abr )
+    	a2.fscale()
+
+    	for Cval in ( 1e15, 1e12, 1e10, 1e8, 1e6, 1e5, 1e3, 1e2, 5e1, 1.25e1, 2.5e0, 1e0, 2.5e-1, 5e-1, 1e-2, 1e-3):  
+           compare_train_CV_logistic( a1.X, y_train, a2.X, y_CV, i, 'Scaled abridged feature set, degree = ' + str(i) + ',  C = ' + str(Cval), C=Cval, scale=True, filestump = 'absval_log_new_01' )
 
 
     for i in range(1,3):

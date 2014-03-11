@@ -56,13 +56,16 @@ class ProbEst( object ):
     def create_Xy_basic( self ):
 	"""Basically a constructor for large matrices as follows:
 
-	(1) 'Xtot' is an (m X 6) matrix containing rows of raw differences for each
+	(1) 'Xtot' is an (m X 9) matrix containing rows of raw differences for each
 	peak in each query spectrum, compared to all peaks from a given control.
 	Each row represents one such query vs control difference and contains the following
 	entries: 
 	<weighted ave CSP>, <delta 15N ppm>, <delta 1H ppm>, <delta linewidth 15N>, 
-	<delta linewidth 1H>, <delta height>, <delta(height / avg height) >,
-	<delta( (height - avg height ) / (stdev of height ) >.  
+	<delta linewidth 1H>, <delta height>,
+	<delta( (height - avg height ) / (stdev of height ) >,  
+	<delta( (lwN - avg lwN ) / (stdev of lwN ) >,  
+	<delta( (lwH - avg lwH ) / (stdev of lwH ) >.
+  
 	Rows are in repeating blocks of peaks for
 	each query spectrum, with each successive block iterating through the possible
 	control spectrum options.
@@ -77,37 +80,35 @@ class ProbEst( object ):
 
 	"""
 
-	import numpy as np
 	#initialise X, Y, etc
-	print type( self.ImpObj[ self.contname ]['picked_features'] )
 	
-	Xtot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] + 2 ] )
-	Fct_tot = Fsp_tot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] + 1 ] )
-	Rmattot = np.zeros([1, np.shape( self.ImpObj[ self.contname ]['picked_features'] )[1] + 3 ] )
+	Xtot = np.zeros([1, 9 ] )
+	Fct_tot = np.zeros([1, 8 ] )
+	Fsp_tot = np.zeros([1, 8 ] )
+	Rmattot = np.zeros([1, 10 ])
 	Ytot = np.zeros((1,1))
 	legmat = np.zeros([1,6])
 	###
 	for Sp in self.ImpObj.keys():
 	    if Sp != self.contname and Sp not in self.exclude_spectra:
 		Xsp, Ysp, legsp, Rmat, Fct, Fsp = self.get_diff_array( self.ImpObj[ Sp ], self.ImpObj[ self.contname ] )
-		print Xtot.shape, Ytot.shape, legmat.shape, Rmattot.shape, Fct_tot.shape, Fsp_tot.shape
-		print Xsp.shape, Ysp.shape, legsp.shape, Rmat.shape, Fct.shape, Fsp.shape
+		#print Xtot.shape, Ytot.shape, legmat.shape, Rmattot.shape, Fct_tot.shape, Fsp_tot.shape
+		#print Xsp.shape, Ysp.shape, legsp.shape, Rmat.shape, Fct.shape, Fsp.shape
 		Xtot = np.vstack( [Xtot, Xsp ] )
 		Fct_tot = np.vstack( [Fct_tot, Fct ] )
 		Fsp_tot = np.vstack( [Fsp_tot, Fsp ] )
 		Rmattot = np.vstack( [Rmattot, Rmat ] )
 		Ytot = np.concatenate( [Ytot, Ysp] ) 
 		legmat = np.vstack( [ legmat, legsp ] )
-	print 'Xtot', np.shape( Xtot[1:, :] ), 'Ytot', np.shape( Ytot[1:] )
+	#print 'Xtot', np.shape( Xtot[1:, :] ), 'Ytot', np.shape( Ytot[1:] )
 	Ytot = np.array( Ytot, dtype = int )
 	return ( Xtot[1:, :], Ytot[1:], legmat[1:,:], Rmattot[1:,:], Fct_tot[1:,:], Fsp_tot[1:,:] )
 
     def get_diff_array( self, SpDic, CtDic ):
 
-	import numpy as np
 	ct_features = CtDic['auto_features'] # first column is residue number
 
-	print 'ct_features', np.shape(ct_features), 'picked_features', np.shape( SpDic['picked_features'] )	
+	#print 'ct_features', np.shape(ct_features), 'picked_features', np.shape( SpDic['picked_features'] )	
 	Fsp = np.reshape( np.tile( SpDic['picked_features'], np.shape(ct_features)[0] ), \
 		( np.shape(ct_features)[0] * np.shape( SpDic['picked_features'] )[0], \
 		np.shape( SpDic['picked_features'] )[1] ) )
@@ -145,7 +146,7 @@ class ProbEst( object ):
 	legct = np.reshape( np.tile( ct_unit.T,  np.shape( SpDic['picked_features'] )[0] ).T, \
 		( np.shape(ct_features)[0] * np.shape( SpDic['picked_features'] )[0], \
 		np.shape( ct_unit )[1] ) )
-	print legsp.shape, legct.shape
+	#print legsp.shape, legct.shape
 
 	leg_all = np.hstack( [ legsp, legct ] )
 	
@@ -155,8 +156,8 @@ class ProbEst( object ):
 	#Fct = np.hstack( [ Fct[:,:-1].reshape((Fct.shape[0], Fct.shape[1]-1)), Fct[:, -2].reshape((Fct.shape[0], 1)) / Fct[:,-1].reshape((Fct.shape[0],1)) ] )
 	
 	# The new way:
-	Fsp = np.hstack( [ Fsp[:,:-1].reshape((Fsp.shape[0], Fsp.shape[1]-1)), Fsp[:, -2].reshape((Fsp.shape[0], 1)) / SpDic['avgheight'], ( ( Fsp[:, -2].reshape((Fsp.shape[0], 1)) - SpDic['avgheight'] ) / SpDic['heightstd'] )  ] )
-	Fct = np.hstack( [ Fct[:,:-1].reshape((Fct.shape[0], Fct.shape[1]-1)), Fct[:, -2].reshape((Fct.shape[0], 1)) / CtDic['avgheight'], ( ( Fct[:, -2].reshape((Fct.shape[0], 1)) - CtDic['avgheight'] ) / CtDic['heightstd'] )  ] )
+	Fsp = np.hstack( [ Fsp, ( ( Fsp[:, 4].reshape((Fsp.shape[0], 1)) - SpDic['avgheight'] ) / SpDic['heightstd'] ), ( ( Fsp[:, 2].reshape((Fsp.shape[0], 1)) - SpDic['avglwN'] ) / SpDic['sdevlwN'] ), ( ( Fsp[:, 3].reshape((Fsp.shape[0], 1)) - SpDic['avglwH'] ) / SpDic['sdevlwH'] )  ] )
+	Fct = np.hstack( [ Fct, ( ( Fct[:, 4].reshape((Fct.shape[0], 1)) - CtDic['avgheight'] ) / CtDic['heightstd'] ), ( ( Fct[:, 2].reshape((Fct.shape[0], 1)) - CtDic['avglwN'] ) / CtDic['sdevlwN'] ), ( ( Fct[:, 3].reshape((Fct.shape[0], 1)) - CtDic['avglwH'] ) / CtDic['sdevlwH'] ) ] )
 
  
 
@@ -183,9 +184,9 @@ class ProbEst( object ):
 	# assign residiue number to automaticaly picked peak
 	if 'full_info' in SpDic.keys():
 	    apindex = np.array( SpDic['full_info'][:,1], dtype = 'int' )
-	    print apindex.shape
-	    print SpDic['full_info'][:,2].shape
-	    print np.max(apindex), spechits.shape
+	    #print apindex.shape
+	    #print SpDic['full_info'][:,2].shape
+	    #print np.max(apindex), spechits.shape
 	    spechits[ apindex, 0 ] = SpDic['full_info'][:,2]	
 	spechits = np.reshape( np.tile( spechits.T, np.shape(ct_features)[0] ), \
                 cresvec.shape )
@@ -193,7 +194,7 @@ class ProbEst( object ):
 	legmat = np.hstack( [ cresvec, specvec, spechits ] )
 	###
 	Yraw = np.zeros( ( np.shape( ct_features )[0] * np.shape( SpDic['picked_features'] )[0], 1 ) )
-	print 'Yraw size', np.shape(Yraw)
+	#print 'Yraw size', np.shape(Yraw)
 
 	if 'full_info' in SpDic.keys():
 	    blocksize = np.shape( SpDic['picked_features'] )[0]
@@ -202,12 +203,12 @@ class ProbEst( object ):
 		    fineindex = SpDic['full_info'][:,1][ list(SpDic['full_info'][:,2]).index( resid ) ] 
 		    blockindex = list(CtDic['full_info'][:,2]).index( resid )	    
 		    print 'Yraw hit @', blockindex * blocksize + fineindex 
-		    Yraw[ blockindex * blocksize + fineindex ] = 1
+		    Yraw[ int(blockindex * blocksize + fineindex) ] = 1
 	###new attempt at Y
 	Yraw = np.array(  leg_all[:,2] == leg_all[:,5], dtype = int ).reshape( ct_features.shape[0] * SpDic['picked_features'].shape[0], 1 )
 	###
 	Ynew = np.array( Yraw, dtype = int )
-	print 'Xraw', np.shape(Xraw), 'Ynew', np.shape(Ynew)
+	#print 'Xraw', np.shape(Xraw), 'Ynew', np.shape(Ynew)
 	R_matrix = np.hstack( (Ynew, Xraw) )
 	return (Xraw, Ynew, leg_all, R_matrix, Fct, Fsp)
 

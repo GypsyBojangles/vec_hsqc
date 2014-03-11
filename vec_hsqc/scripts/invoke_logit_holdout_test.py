@@ -1,25 +1,31 @@
 
 import numpy as np
 import os
-from vec_hsqc import pred_vec
+from vec_hsqc import pred_vec, post_proc
 import datetime
- 
+
 curdir = os.path.dirname( os.path.abspath( __file__ ) )
 
 
 #X = np.zeros( (500,5) )
 #y = np.zeros( 500 )
 
-X_train = np.loadtxt( os.path.join( curdir, '140310_spectral_split_train_X.npy'  ) ) 
-y_train = np.loadtxt( os.path.join( curdir,  '140310_spectral_split_train_y.npy' ) )
+X_test = np.loadtxt( os.path.join( curdir, '140310_spectral_split_test_X.npy'  ) ) 
+y_test = np.loadtxt( os.path.join( curdir,  '140310_spectral_split_test_y.npy' ) )
+legmat = np.loadtxt( os.path.join( curdir, '140310_spectral_split_test_legmat.npy' ), dtype=str ) 
+
+csarray_test = np.loadtxt( os.path.join( curdir,  '140310_spectral_split_test_CSarray.npy' ) )
 
 
-X_CV = np.loadtxt( os.path.join( curdir, '140310_spectral_split_CV_X.npy'  ) )
-y_CV = np.loadtxt( os.path.join( curdir, '140310_spectral_split_CV_y.npy'  ) )
 
 
+THETA = np.array( [[ -1.71625544e+02,  -6.67553778e+00,  -2.50373598e+01,  -1.71426065e+00,
+   -8.75050294e-01,  -2.53084634e-01,  -4.57966273e-01,   1.58871711e+00,
+    1.05186659e+00,   6.19445278e+01,   4.65747888e+01,   4.50238953e+01,
+    1.10348017e+00,   2.35015762e-01,  -3.30539659e-01,  -1.07562162e+00,
+   -8.20101423e-01,  -5.70867628e-02]] )
 
-
+BIAS = -231.96142564
 
 
 
@@ -77,30 +83,34 @@ def compare_train_CV_logistic( Xtr, ytr, Xcv, ycv, degree, description, C=1e5, s
 	print_output( a1, ycv, description, 'CV', filestump, degree, C  )
 
 
+def test_metrics( Xtest, ytest, degree, description, C=1e5, scale=False, filestump = 'Cf_log_01' ):
+
+	a1 = pred_vec.PredLog( X=Xtr, y=ytr, C = C )
+	a1.fit()
+	a1.binary_predict( a1.X )
+	print_output( a1, ytr, description, 'train', filestump, degree, C )
+
+
+
 #Xtr_abr = np.abs( np.hstack( [ X_train[:,1:-2], X_train[:,-1].reshape( X_train.shape[0], 1) ] ) )
 #Xcv_abr = np.abs( np.hstack( [ X_CV[:,1:-2], X_CV[:,-1].reshape( X_CV.shape[0], 1) ] ) )
 
 #X_train = np.abs( np.hstack( [ X_train[:,:-2], X_train[:,-1].reshape( X_train.shape[0], 1) ] ) )
 #X_CV = np.abs( np.hstack( [ X_CV[:,:-2], X_CV[:,-1].reshape( X_CV.shape[0], 1) ] ) )
 
+#X = create_array_poly( X_test, 2)
+
 if __name__ == '__main__':
 
-
-    for i in range(1,3):
-	X_train = create_array_poly( X_train, i )
-	X_CV = create_array_poly( X_CV, i )
-	#Xtr_abr = create_array_poly( Xtr_abr, degree )
-	#Xcv_abr = create_array_poly( Xcv_abr, degree )
-
-	a1 = pred_vec.PredLog( X=X_train)
-	a1.fscale()
-	
-	a2 = pred_vec.PredLog( X=X_CV)
-	a2.fscale()
-
-	for Cval in ( 1e15, 1e12, 1e10, 1e8, 1e6, 1e5, 1e3, 1e2, 5e1, 1.25e1, 2.5e0, 1e0, 2.5e-1, 5e-1, 1e-2, 1e-3):  
-            #compare_train_CV_logistic( X_train[:,1:], y_train, X_CV[:,1:], y_CV, i, 'Unscaled full feature set, degree = ' + str(i) + ', C = ' + str(Cval), C=Cval, scale=False )
-            #compare_train_CV_logistic( abridge_features(X_train), y_train, abridge_features(X_CV), y_CV, i, 'Unscaled abridged feature set, degree = ' + str(i) + ', C = ' + str(Cval), C=Cval, scale=False )
-            compare_train_CV_logistic( a1.X, y_train, a2.X, y_CV, i, 'Scaled full feature set, degree = ' + str(i) + ', C = ' + str(Cval), C=Cval, scale=True, filestump = 'absval_log_new_02' )
-            #compare_train_CV_logistic( Xtr_abr, y_train, Xcv_abr, y_CV, i, 'Scaled abridged feature set, degree = ' + str(i) + ',  C = ' + str(Cval), C=Cval, scale=True )
-
+    X_test = create_array_poly( X_test, 2 )
+    a1 = pred_vec.PredLog( X=X_test)
+    a1.fscale()
+    a1.theta = THETA
+    a1.bias = BIAS
+    a1.binary_predict( a1.X )
+    a1.y_pred = a1.clean_ambiguities( legmat, a1.scores_logistic, a1.y_pred_logistic )
+    print_output( a1, y_test, 'test set', 'test', 'crap01', 2, 1000 )
+    a2 = post_proc.DataOut()
+    a2.generate_master_peak_list( a1.y_pred, legmat, csarray_test )
+    np.savetxt( os.path.join( curdir, 'master_array_new.npy' ), a2.master_array, fmt="%s" )
+    a2.writeall_peak_lists( a2.master_array, curdir, 'test_set_prediction_new_' )

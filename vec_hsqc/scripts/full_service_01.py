@@ -100,20 +100,21 @@ class ImportData( object ):
 	a1 = vec_hsqc.pred_vec.ProbEst(   )
 	a1.import_data( full_data_dict )
 	a1.extract_features( )
-	return ( a1.Xtot, a1.Ytot.ravel(), a1.legmat )
+	return ( a1.Xtot, a1.Ytot.ravel(), a1.legmat, a1.Fsp )
 
     def combine_features(self, fdd_list ):
 	"""
 
 
 	"""
-	X, y, legmat = self.process_features( fdd_list[0] )
+	X, y, legmat, CSarray = self.process_features( fdd_list[0] )
 	for i in range(1, len(fdd_list)):
-	    Xn, yn, legmatn = self.process_features( fdd_list[i] )
+	    Xn, yn, legmatn, CSarrayn = self.process_features( fdd_list[i] )
 	    X = np.vstack( [ X, Xn ] )
 	    y = np.hstack( [ y, yn ] )
 	    legmat = np.vstack( [ legmat, legmatn ] )
-	return X, y, legmat
+	    CSarray = np.vstack( [ CSarray, CSarrayn ] )
+	return (X, y, legmat, CSarray)
 
     def get_spectra_list( self, legmat ):
 	"""
@@ -226,7 +227,7 @@ class ImportData( object ):
 	split_array( full, testind, CURDIR, 'test_' + array_name ) 
 
 
-    def save_all_split_arrays( self, X, y, legmat, trainind, CVind, testind, savedir, filestump ):
+    def save_all_split_arrays( self, X, y, legmat, CSarray, trainind, CVind, testind, savedir, filestump ):
 	"""
 
 
@@ -238,9 +239,15 @@ class ImportData( object ):
 	np.savetxt( os.path.join( savedir, filestump + '_train_X.npy' ), X[trainind] )
 	np.savetxt( os.path.join( savedir, filestump + '_CV_X.npy' ), X[CVind] )
 	np.savetxt( os.path.join( savedir, filestump + '_test_X.npy' ), X[testind] )
+	np.savetxt( os.path.join( savedir, filestump + '_train_CSarray.npy' ), CSarray[trainind] )
+	np.savetxt( os.path.join( savedir, filestump + '_CV_CSarray.npy' ), CSarray[CVind] )
+	np.savetxt( os.path.join( savedir, filestump + '_test_CSarray.npy' ), CSarray[testind] )
 	np.savetxt( os.path.join( savedir, filestump + '_train_y.npy' ), y[trainind] )
 	np.savetxt( os.path.join( savedir, filestump + '_CV_y.npy' ), y[CVind] )
 	np.savetxt( os.path.join( savedir, filestump + '_test_y.npy' ), y[testind] )
+	np.savetxt( os.path.join( savedir, filestump + '_trainindices.npy' ), trainind )
+	np.savetxt( os.path.join( savedir, filestump + '_CVindices.npy' ), CVind )
+	np.savetxt( os.path.join( savedir, filestump + '_testindices.npy' ), testind )
 
 
 
@@ -255,7 +262,8 @@ if __name__ == '__main__':
     Iobj.write_import_pickle( Iobj.select_import_object_by_control( '120319_apo.ucsf' ), CURDIR,  '120319_training_newest.pickle' )
     Iobj.write_import_pickle( Iobj.select_import_object_by_control( '120323_apo.ucsf' ), CURDIR,  '120323_training_newest.pickle' )
     Iobj.write_import_pickle( Iobj.select_import_object_by_control( '120328_apo.ucsf' ), CURDIR,  '120328_training_newest.pickle' )
-    X, y, legmat = Iobj.combine_features( [ b.full_data_dict for b in Iobj.imports ] )
+    X, y, legmat, CSarray = Iobj.combine_features( [ b.full_data_dict for b in Iobj.imports ] )
+    #CSarray = 
     trainspectra, CVspectra, testspectra = Iobj.split_spectra( Iobj.get_spectra_list( legmat ) )
     print 'trainspectra =', trainspectra, '\n\n'
     print 'CVspectra =', CVspectra, '\n\n'
@@ -265,8 +273,8 @@ if __name__ == '__main__':
     print 'train indices: random =', rand_trind.shape[0], ', spectral =', trind.shape[0]
     print 'train indices: random =', rand_CVind.shape[0], ', spectral =', CVind.shape[0]
     print 'test indices: random =', rand_testind.shape[0], ', spectral =', testind.shape[0]
-    Iobj.save_all_split_arrays(X, y, legmat, trind, CVind, testind, CURDIR, '140309_spectral_split' )
-    Iobj.save_all_split_arrays(X, y, legmat, rand_trind, rand_CVind, rand_testind, CURDIR, '140309_random_split' )
+    Iobj.save_all_split_arrays(X, y, legmat, CSarray, trind, CVind, testind, CURDIR, '140310_spectral_split' )
+    Iobj.save_all_split_arrays(X, y, legmat, CSarray, rand_trind, rand_CVind, rand_testind, CURDIR, '140310_random_split' )
  
 
 
