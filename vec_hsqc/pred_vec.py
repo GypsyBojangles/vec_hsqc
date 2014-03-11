@@ -513,3 +513,48 @@ class PredLog( PredMetrics ):
 	print str(self.theta)
 
 
+
+class WildGuess( object ):
+
+    def remove_assigned( self, y, legmat, array_list, legmat_columns = [0,1] ):
+	"""(WildGuess, np.array, legmat, list of np.arrays) -> list of np.arrays
+
+	Arguments:
+
+	- y is an m-dimensional np.array vector, either boolean or int
+
+	- legmat is an np.chararry, dimensions m X 6.  The columns specified
+	by the keyword argument legmat_columns must correspond to the
+	indices of: (a) spectrum name, (b) peaks on non-control spectra 
+
+	- array_list is a python list, containing np.arrays of dimensions
+	m X q, where q can vary
+
+	For every True entry in y, the corresponding peak in legmat is found and
+	all indices corresponding to that peak are removed. 
+
+	Returns:
+
+	- a list of np.arrays with rows corresponding to already assigned peaks removed.
+	Ordering of arrays is identical to that of array_list
+
+	"""
+	hits = np.nonzero( y == 1 )[0]
+	#peakindices = legmat[:, legmat_p_column ].astype(float).astype(int)
+	assigned = legmat[:, legmat_columns ][ hits ]
+	retained = np.ones( y.shape[0], dtype = int )
+	for spectrum, peak in assigned:
+	     indices_affected = np.nonzero( ( legmat[:,  legmat_columns[0] ] == spectrum ) \
+		 *  ( legmat[:, legmat_columns[1] ] == peak ) )[0]
+	     retained[ indices_affected ] = 0
+	return map( lambda a: a[ np.nonzero( retained )[0] ], [ b for b in array_list ] ) 
+	
+
+    def shrink_arrays( self, y, legmat, array_list,  legmat_pkindex_column = 1 ):
+	"""
+
+
+
+	"""
+	pass	
+

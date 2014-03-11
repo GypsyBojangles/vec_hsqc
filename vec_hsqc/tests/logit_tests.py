@@ -181,6 +181,9 @@ class TestInput( unittest.TestCase ):
 	self.assertTrue( (a.y_pred == a.y_pred_logistic).all() )
 
     def test_clean_ambiguities(self):
+	"""A check on the 'clean_ambiguities' and 'remove_dualities' methods.
+
+	"""
 	a = pred_vec.PredLog()
 	trial = a.clean_ambiguities( EG_LEGMAT, EG_SCORES_RAW, EG_Y ) 
 	self.assertTrue( (EG_FIXED_Y == trial).all() )
