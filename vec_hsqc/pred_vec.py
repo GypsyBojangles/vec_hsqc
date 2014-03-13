@@ -512,11 +512,36 @@ class PredLog( PredMetrics ):
 	print 'Train Accuracy:', (p == self.y).mean() * 100
 	print str(self.theta)
 
+class NaiveBayes( PredMetrics ):
+
+    def train( self, X, y ):
+	"""
+
+
+	"""
+	gnb = GaussianNB()
+	gpr = gnb.fit( X, y )
+	return ( gpr.class_prior, gpr.classes_,  gpr.theta_, gpr.sigma_ )
+
+    def predict( self, X, class_prior, classes, theta, sigma ):
+	"""
+
+
+
+	"""
+	gpr = GaussianNB()
+	#gpr = gnb.fit( X, y )
+	gpr.class_prior = class_prior
+	gpr.classes_ = classes
+	gpr.theta_ = theta
+	gpr.sigma_ = sigma
+	return ( gpr.predict( X ), gpr.predict_proba( X ) )
+
 
 
 class WildGuess( object ):
 
-    def remove_assigned( self, y, legmat, array_list, legmat_columns = [0,1] ):
+    def remove_assigned( self, y, legmat, array_list, legmat_spec_cols = [0,1], legmat_cont_cols = [3,4] ):
 	"""(WildGuess, np.array, legmat, list of np.arrays) -> list of np.arrays
 
 	Arguments:
@@ -540,21 +565,74 @@ class WildGuess( object ):
 
 	"""
 	hits = np.nonzero( y == 1 )[0]
-	#peakindices = legmat[:, legmat_p_column ].astype(float).astype(int)
-	assigned = legmat[:, legmat_columns ][ hits ]
-	retained = np.ones( y.shape[0], dtype = int )
-	for spectrum, peak in assigned:
-	     indices_affected = np.nonzero( ( legmat[:,  legmat_columns[0] ] == spectrum ) \
-		 *  ( legmat[:, legmat_columns[1] ] == peak ) )[0]
-	     retained[ indices_affected ] = 0
-	return map( lambda a: a[ np.nonzero( retained )[0] ], [ b for b in array_list ] ) 
+	assigned_spec = legmat[:, legmat_spec_cols ][ hits ]
+	assigned_cont = legmat[:, legmat_cont_cols ][ hits ]
+	retained_spec = np.ones( y.shape[0], dtype = int )
+	retained_cont = np.ones( y.shape[0], dtype = int )
+	for spectrum, peak in assigned_spec:
+	     indices_affected = np.nonzero( ( legmat[:,  legmat_spec_cols[0] ] == spectrum ) \
+		 *  ( legmat[:, legmat_spec_cols[1] ] == peak ) )[0]
+	     retained_spec[ indices_affected ] = 0
+	for spectrum, peak in assigned_cont:
+	     indices_affected = np.nonzero( ( legmat[:,  legmat_cont_cols[0] ] == spectrum ) \
+		 *  ( legmat[:, legmat_cont_cols[1] ] == peak ) )[0]
+	     retained_cont[ indices_affected ] = 0
+	retained = np.nonzero( retained_spec * retained_cont )[0]
+	return map( lambda a: a[ retained ], [ b for b in array_list ] ) 
 	
 
-    def shrink_arrays( self, y, legmat, array_list,  legmat_pkindex_column = 1 ):
-	"""
+    def get_nearest( self, X, legmat, array_list, legmat_spec_cols = [0,1], no_nearest = 1, return_indices=False ):
+	"""( WildGeuess, np.array, np.chararray, list of np.arrays -> list of np.arrays
+
+	Finds the nearest no_nearest peaks to each spectral peak described in legmat,
+	based on the distances described in the first (index=0) column of X
+
+	Returns a list of np.arrays, identical to the original array_list, but with only
+	rows corresponding to the no_closest peaks retained.
 
 
 
 	"""
-	pass	
+	targets = self.get_unique_rows( legmat[ :, legmat_spec_cols ] )
+	retain = np.zeros( X.shape[0], dtype = int )
+	for spectrum, peak in targets:
+	    indices_affected = np.nonzero( ( legmat[:,  legmat_spec_cols[0] ] == spectrum ) \
+		 *  ( legmat[:, legmat_spec_cols[1] ] == peak ) )[0]
+	    try:
+	        sort_X = X[ indices_affected ][:,0].argsort()[ 0 : no_nearest ]
+		retain[ indices_affected[ np.argsort( X[indices_affected][:,0] )[0:no_nearest ] ] ] = 1
+	    except:
+		retain[ indices_affected ] = 1
+		#cut_arrays = map( lambda x: x[ indices_affected ], [ b for b in array_list ] )
+	retained = np.nonzero( retain )[0]
+	retlist =  map( lambda a: a[ retained ], [ b for b in array_list ] ) 
+	if return_indices:
+	    return (retlist, retained )
+	else:
+	    return retlist 
+	    
+    def rapid_wild_guess( self, X, legmat, CSarray, cutoff_dist = 0.4, legmat_spec_cols = [0,1] ):
+	"""
 
+	"""
+	X, legmat, CSarray = self.get_nearest( X, legmat, array_list = [X, legmat, CSarray], \
+		legmat_spec_cols = legmat_spec_cols, no_nearest = 1 )
+	y_rapid = np.nonzero( X[:, 0 ] < cutoff_dist )[0].ravel()
+	return (X, legmat, CSarray, y_rapid )
+	    
+
+    def get_unique_rows( self, arr ):
+	"""np.array -> np.array
+
+	returns the unique rows from supplied 2D array
+
+	code courtesy of Jaime on StackOverflow:
+	http://stackoverflow.com/questions/16970982/find-unique-rows-in-numpy-array
+	"""
+	b = np.ascontiguousarray(arr).view(np.dtype((np.void, arr.dtype.itemsize * arr.shape[1]))) 
+	_, idx = np.unique(b, return_index=True)
+	return arr[idx]
+
+
+
+	
