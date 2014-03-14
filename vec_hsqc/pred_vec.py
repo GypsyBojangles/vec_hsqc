@@ -541,7 +541,7 @@ class NaiveBayes( PredMetrics ):
 
 class WildGuess( object ):
 
-    def remove_assigned( self, y, legmat, array_list, legmat_spec_cols = [0,1], legmat_cont_cols = [3,4] ):
+    def remove_assigned( self, y, legmat, array_list, legmat_spec_cols = [0,1], legmat_cont_cols = [0,3,4] ):
 	"""(WildGuess, np.array, legmat, list of np.arrays) -> list of np.arrays
 
 	Arguments:
@@ -573,15 +573,17 @@ class WildGuess( object ):
 	     indices_affected = np.nonzero( ( legmat[:,  legmat_spec_cols[0] ] == spectrum ) \
 		 *  ( legmat[:, legmat_spec_cols[1] ] == peak ) )[0]
 	     retained_spec[ indices_affected ] = 0
-	for spectrum, peak in assigned_cont:
+	for spectrum, control, peak in assigned_cont:
+	     #indices_affected = np.nonzero( ( legmat[:,  legmat_cont_cols[0] ] == spectrum ) \
+	     #	 *  ( legmat[:, legmat_cont_cols[1] ] == peak ) )[0]
 	     indices_affected = np.nonzero( ( legmat[:,  legmat_cont_cols[0] ] == spectrum ) \
-		 *  ( legmat[:, legmat_cont_cols[1] ] == peak ) )[0]
+		 *( legmat[:,  legmat_cont_cols[1] ] == control )  * ( legmat[:, legmat_cont_cols[2] ] == peak ) )[0]
 	     retained_cont[ indices_affected ] = 0
 	retained = np.nonzero( retained_spec * retained_cont )[0]
 	return map( lambda a: a[ retained ], [ b for b in array_list ] ) 
 	
 
-    def get_nearest( self, X, legmat, array_list, legmat_spec_cols = [0,1], no_nearest = 1, return_indices=False ):
+    def get_nearest( self, X, legmat, array_list, legmat_cols = [0,3,4], no_nearest = 1, return_indices=False ):
 	"""( WildGeuess, np.array, np.chararray, list of np.arrays -> list of np.arrays
 
 	Finds the nearest no_nearest peaks to each spectral peak described in legmat,
@@ -593,11 +595,11 @@ class WildGuess( object ):
 
 
 	"""
-	targets = self.get_unique_rows( legmat[ :, legmat_spec_cols ] )
+	targets = self.get_unique_rows( legmat[ :, legmat_cols ] )
 	retain = np.zeros( X.shape[0], dtype = int )
-	for spectrum, peak in targets:
-	    indices_affected = np.nonzero( ( legmat[:,  legmat_spec_cols[0] ] == spectrum ) \
-		 *  ( legmat[:, legmat_spec_cols[1] ] == peak ) )[0]
+	for spectrum, control, peak in targets:
+	    indices_affected = np.nonzero( ( legmat[:,  legmat_cols[0] ] == spectrum ) \
+		*( legmat[:,  legmat_cols[1] ] == control ) *  ( legmat[:, legmat_cols[2] ] == peak ) )[0]
 	    try:
 	        sort_X = X[ indices_affected ][:,0].argsort()[ 0 : no_nearest ]
 		retain[ indices_affected[ np.argsort( X[indices_affected][:,0] )[0:no_nearest ] ] ] = 1
@@ -611,15 +613,34 @@ class WildGuess( object ):
 	else:
 	    return retlist 
 	    
-    def rapid_wild_guess( self, X, legmat, CSarray, cutoff_dist = 0.4, legmat_spec_cols = [0,1] ):
+    def rapid_wild_guess( self, X, legmat, CSarray, cutoff_dist = 0.4, legmat_cols = [0,3,4] ):
 	"""
 
 	"""
 	X, legmat, CSarray = self.get_nearest( X, legmat, array_list = [X, legmat, CSarray], \
-		legmat_spec_cols = legmat_spec_cols, no_nearest = 1 )
-	y_rapid = np.nonzero( X[:, 0 ] < cutoff_dist )[0].ravel()
+		legmat_cols = legmat_cols, no_nearest = 1 )
+	y_rapid = ( X[:, 0 ] < cutoff_dist ).astype(int).ravel()
 	return (X, legmat, CSarray, y_rapid )
+
+    def splice_y( self, legmat_ori, legmat_new, y_ori, y_new ):
+	"""(WildGuess, np.chararray, np.chararry, np.array, np.array -> np.array 
+
+	Returns an emended form of y_ori, based upon legmat_new and y_new
+
+	"""
+	legmat_ori = np.ascontiguousarray(legmat_ori).view(np.dtype((np.void, legmat_ori.dtype.itemsize * legmat_ori.shape[1]))) 
+	legmat_new = np.ascontiguousarray(legmat_new).view(np.dtype((np.void, legmat_new.dtype.itemsize * legmat_new.shape[1]))) 
+	#alter = np.zeros( legmat_ori.shape[0] )
+	for i in xrange( legmat_new.shape[0] ):
 	    
+	    #print legmat_new[i]
+	    index = np.nonzero(  legmat_ori == legmat_new[i]  )[0].ravel()
+	    #print index
+	    if index.shape[0] == 1:
+	        y_ori[ index ] = y_new[i]
+	#alter = np.nonzero( alter )[0]
+	#y_ori[ alter ] = y_new
+	return y_ori
 
     def get_unique_rows( self, arr ):
 	"""np.array -> np.array
